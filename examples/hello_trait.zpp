@@ -1,0 +1,33 @@
+const std = @import("std");
+
+trait Writer {
+    fn write(self, bytes: []const u8) !usize;
+}
+
+owned struct FileWriter {
+    file: std.fs.File,
+
+    pub fn init(path: []const u8) !FileWriter {
+        return .{
+            .file = try std.fs.cwd().createFile(path, .{}),
+        };
+    }
+
+    pub fn deinit(self: *FileWriter) void {
+        self.file.close();
+    }
+
+    pub fn write(self: *FileWriter, bytes: []const u8) !usize {
+        try self.file.writeAll(bytes);
+        return bytes.len;
+    }
+}
+
+fn emit(w: impl Writer, msg: []const u8) !void {
+    _ = try w.write(msg);
+}
+
+pub fn main() !void {
+    using writer = try FileWriter.init("log.txt");
+    try emit(&writer, "hello zig++\n");
+}

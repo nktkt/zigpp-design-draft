@@ -1,0 +1,25 @@
+trait Ord {
+    fn rank(self) u32;
+}
+
+const Score = struct {
+    value: u32,
+
+    pub fn rank(self: Score) u32 {
+        return self.value;
+    }
+};
+
+fn min(comptime T: type, a: T, b: T) T
+    where T: Ord
+{
+    if (a.rank() < b.rank()) return a;
+    return b;
+}
+
+pub fn main() void {
+    const a = Score{ .value = 7 };
+    const b = Score{ .value = 3 };
+    const winner = min(Score, a, b);
+    _ = winner;
+}

@@ -1,0 +1,22 @@
+trait Writer {
+    fn write(self, bytes: []const u8) !usize;
+}
+
+owned struct Sink {
+    pub fn init() Sink {
+        return .{};
+    }
+
+    pub fn deinit(self: *Sink) void {
+        _ = self;
+    }
+}
+
+fn emit(w: impl Writer, msg: []const u8) !void {
+    _ = msg;
+}
+
+pub fn main() !void {
+    using sink = Sink.init();
+    try emit(&sink, "hello\n");
+}

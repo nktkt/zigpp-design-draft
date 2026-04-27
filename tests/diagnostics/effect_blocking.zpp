@@ -1,0 +1,5 @@
+fn pause() void
+    effects(.cpu)
+{
+    std.time.sleep(1);
+}

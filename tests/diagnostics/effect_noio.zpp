@@ -1,0 +1,5 @@
+fn write(file: std.fs.File) !void
+    effects(.noio)
+{
+    try file.writeAll("hello");
+}

@@ -1,0 +1,4 @@
+pub fn main() !void {
+    own var buf = try Buffer.init(allocator);
+    _ = buf;
+}

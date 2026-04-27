@@ -1,0 +1,21 @@
+const zpp = @import("zpp");
+
+const User = struct {
+    id: u64,
+    name: []const u8,
+} derive(.{
+    Json,
+    Hash,
+    Debug,
+});
+
+pub fn main() void {
+    const user = User{
+        .id = 1,
+        .name = "zig++",
+    };
+    _ = user;
+    _ = User.debug.typeName();
+    _ = User.hash.typeName();
+    _ = User.json.typeName();
+}

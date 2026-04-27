@@ -1,0 +1,7 @@
+fn worker() void {}
+
+fn run() void
+    effects(.nothread)
+{
+    _ = std.Thread.spawn(.{}, worker, .{});
+}

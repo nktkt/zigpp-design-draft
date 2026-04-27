@@ -1,0 +1,13 @@
+{
+  "name": "zigpp-examples",
+  "version": "0.1.0",
+  "sources": [
+    "examples/contracts.zpp",
+    "examples/derive_user.zpp",
+    "examples/effects_visibility.zpp",
+    "examples/hello_trait.zpp",
+    "examples/noalloc_hash.zpp",
+    "examples/owned_buffer.zpp",
+    "examples/where_constraints.zpp"
+  ]
+}

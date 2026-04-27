@@ -1,0 +1,5 @@
+fn call(plugin: Plugin.Dyn) void
+    effects(.cpu)
+{
+    _ = plugin.vtable;
+}

@@ -1,0 +1,10 @@
+fn visibleEffects(allocator: std.mem.Allocator, plugin: Plugin.Dyn, ptr: *u8, file: std.fs.File) !void
+    effects(.alloc, .io, .unsafe, .dyn, .spawn, .blocking)
+{
+    _ = try allocator.alloc(u8, 16);
+    _ = @intFromPtr(ptr);
+    _ = plugin.vtable;
+    _ = std.Thread.spawn(.{}, worker, .{});
+    std.time.sleep(1);
+    try file.writeAll("visible\n");
+}

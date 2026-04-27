@@ -1,0 +1,17 @@
+fn at(xs: []const u8, i: usize) u8
+    requires(i < xs.len)
+    invariant(xs.len > 0)
+{
+    return xs[i];
+}
+
+fn abs(x: i32) i32
+    ensures(result >= 0)
+{
+    return if (x < 0) -x else x;
+}
+
+pub fn main() void {
+    _ = at("zig++", 1);
+    _ = abs(-5);
+}

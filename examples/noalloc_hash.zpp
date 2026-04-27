@@ -1,0 +1,14 @@
+fn hashBytes(bytes: []const u8) u64
+    effects(.noalloc, .noio)
+{
+    var h: u64 = 1469598103934665603;
+    for (bytes) |b| {
+        h ^= b;
+        h *%= 1099511628211;
+    }
+    return h;
+}
+
+pub fn main() void {
+    _ = hashBytes("zig++");
+}

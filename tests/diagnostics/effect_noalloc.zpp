@@ -1,0 +1,5 @@
+fn make(allocator: std.mem.Allocator) ![]u8
+    effects(.noalloc)
+{
+    return try allocator.alloc(u8, 16);
+}

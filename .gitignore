@@ -1,0 +1,11 @@
+.zig-cache/
+zig-out/
+*.o
+*.obj
+*.exe
+*.pdb
+/hello_trait
+/owned_buffer
+/noalloc_hash
+/missing_trait_method
+/contracts

@@ -1,0 +1,13 @@
+owned struct Thing {
+    pub fn init() Thing {
+        return .{};
+    }
+
+    pub fn deinit(self: *Thing) void {
+        _ = self;
+    }
+}
+
+pub fn main() void {
+    using thing = Thing.init();
+}

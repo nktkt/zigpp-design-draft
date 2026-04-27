@@ -1,0 +1,5 @@
+fn addr(ptr: *u8) usize
+    effects(.cpu)
+{
+    return @intFromPtr(ptr);
+}

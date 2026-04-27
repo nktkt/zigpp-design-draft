@@ -1,0 +1,25 @@
+const std = @import("std");
+
+owned struct Buffer {
+    allocator: std.mem.Allocator,
+    bytes: []u8,
+
+    pub fn init(allocator: std.mem.Allocator, len: usize) !Buffer {
+        return .{
+            .allocator = allocator,
+            .bytes = try allocator.alloc(u8, len),
+        };
+    }
+
+    pub fn deinit(self: *Buffer) void {
+        self.allocator.free(self.bytes);
+    }
+}
+
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    own var buf = try Buffer.init(gpa.allocator(), 4096);
+    using buf;
+}

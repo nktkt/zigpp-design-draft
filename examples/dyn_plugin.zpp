@@ -1,0 +1,7 @@
+trait AudioPlugin {
+    fn process(self, input: []const f32, output: []f32) void;
+}
+
+fn render(plugin: dyn AudioPlugin, input: []const f32, output: []f32) void {
+    plugin.process(input, output);
+}
