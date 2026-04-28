@@ -17,6 +17,8 @@ documents when working on code or reviewing changes.
 - [Lowering Rules](lowering-rules.md): current `.zpp` to Zig lowering contract
 - [Diagnostics](diagnostics.md): ownership checks, effect checks, severities,
   and known limits
+- [Tool Reference](tool-reference.md): CLI commands, common workflows, options,
+  and exit behavior
 - [Package Tools](package-tools.md): `zpp-doc`, `zpp-api`, `zpp-package`,
   API manifests, compatibility checks, and CI policy
 
@@ -34,6 +36,7 @@ Use these docs by task:
 - changing syntax or generated Zig: read
   [Lowering Rules](lowering-rules.md) and [Architecture](architecture.md)
 - changing diagnostics: read [Diagnostics](diagnostics.md)
+- using or changing CLI behavior: read [Tool Reference](tool-reference.md)
 - changing package manifests, API extraction, or generated docs: read
   [Package Tools](package-tools.md)
 - changing project direction: read [Zig++ Design Draft v0.1](zigpp-design-draft-v0.1.md)
