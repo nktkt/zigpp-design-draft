@@ -1,0 +1,48 @@
+name: Design proposal
+description: Propose a language, lowering, diagnostics, tooling, or package change.
+title: "[design] "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Zig++ is intentionally conservative. Proposals should explain how the
+        idea keeps allocation, cleanup, dispatch, unsafe operations, and control
+        flow visible.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What practical limitation or ambiguity does this address?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: Describe the syntax, diagnostic, tool, or package behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: lowering
+    attributes:
+      label: Lowering shape
+      description: Show how the feature would lower to readable Zig when relevant.
+      render: zig
+    validations:
+      required: false
+  - type: textarea
+    id: costs
+    attributes:
+      label: Visible costs
+      description: List allocation, cleanup, dispatch, unsafe, blocking, or spawn effects.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives
+      description: What simpler Zig or Zig++ approach should be considered first?
+    validations:
+      required: false

@@ -1,0 +1,56 @@
+name: Bug report
+description: Report incorrect lowering, diagnostics, tooling, or docs behavior.
+title: "[bug] "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a problem. Include enough source and command output
+        for the behavior to be reproduced locally.
+  - type: textarea
+    id: source
+    attributes:
+      label: Input source
+      description: Paste the smallest `.zpp` input or command sequence that reproduces the problem.
+      render: zig
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include diagnostics, generated Zig, or command output.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: Explain the behavior or generated Zig shape you expected.
+    validations:
+      required: true
+  - type: input
+    id: command
+    attributes:
+      label: Command
+      placeholder: zig build run -- examples/hello_trait.zpp -o /tmp/hello_trait.zig
+    validations:
+      required: false
+  - type: input
+    id: zig-version
+    attributes:
+      label: Zig version
+      placeholder: 0.15.2
+    validations:
+      required: false
+  - type: checkboxes
+    id: principles
+    attributes:
+      label: Visibility check
+      options:
+        - label: The issue involves hidden allocation, cleanup, dispatch, unsafe behavior, or control flow.
+          required: false
+        - label: The generated Zig is harder to read than the `.zpp` source suggests.
+          required: false

@@ -30,6 +30,16 @@ zig build package-zpp -- zpp-package.json --api-check
 extra commands above are listed separately because they mirror the CI workflow
 and make package-level regressions easier to isolate.
 
+## Issues and Pull Requests
+
+Use the GitHub issue templates when reporting bugs or proposing language
+changes. Good reports include the `.zpp` input, the generated Zig shape when
+relevant, and the exact command that exposes the problem.
+
+Pull requests should keep the diff focused. Include tests for behavior changes,
+and call out any intentional syntax, diagnostic, or generated API changes in
+the PR description.
+
 ## Adding Language Features
 
 New syntax should include:
