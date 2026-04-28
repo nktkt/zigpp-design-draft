@@ -49,6 +49,7 @@ Purpose:
 - runs diagnostics for one source file
 - lowers `.zpp` to Zig unless `--check` is used
 - writes to stdout by default, or to `-o output.zig`
+- prints diagnostics as `path:line:column: severity[code]: message`
 
 Examples:
 

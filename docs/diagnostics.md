@@ -8,7 +8,7 @@ small.
 Diagnostic output uses this shape:
 
 ```text
-path/to/file.zpp:line:column: severity: message
+path/to/file.zpp:line:column: severity[code]: message
 ```
 
 Current severities are:
@@ -19,8 +19,41 @@ Current severities are:
 - `note`: available in the diagnostic model, but not currently emitted by the
   main checks
 
-Stable diagnostic codes do not exist yet. Until they do, tests and tooling
-should match severity and message text only when necessary.
+Diagnostic codes are stable within the prototype series. Tooling should prefer
+codes over message text when it needs to classify diagnostics.
+
+## Diagnostic Codes
+
+Ownership diagnostics:
+
+| Code | Severity | Meaning |
+| --- | --- | --- |
+| `ZPP1001` | error | owned value was not cleaned up |
+| `ZPP1002` | error | owned value was used after `move` |
+| `ZPP1003` | error | owned value was moved after cleanup |
+| `ZPP1004` | error | owned value was cleaned up more than once |
+
+Negative effect diagnostics:
+
+| Code | Severity | Meaning |
+| --- | --- | --- |
+| `ZPP2001` | error | `.noalloc` function contains allocation-like operation |
+| `ZPP2002` | error | `.noio` function contains I/O-like operation |
+| `ZPP2003` | error | `.nonblocking` function contains blocking-like operation |
+| `ZPP2004` | error | `.nothread` function contains spawn-like operation |
+| `ZPP2005` | error | `.nodyn` function contains dynamic-dispatch-like operation |
+| `ZPP2006` | error | `.nounsafe` function contains unsafe-like operation |
+
+Missing visible effect diagnostics:
+
+| Code | Severity | Meaning |
+| --- | --- | --- |
+| `ZPP2101` | warning | allocation-like operation needs `.alloc` or `.noalloc` |
+| `ZPP2102` | warning | I/O-like operation needs `.io` or `.noio` |
+| `ZPP2103` | warning | blocking-like operation needs `.blocking` or `.nonblocking` |
+| `ZPP2104` | warning | spawn-like operation needs `.spawn` or `.nothread` |
+| `ZPP2105` | warning | dynamic-dispatch-like operation needs `.dyn` or `.nodyn` |
+| `ZPP2106` | warning | unsafe-like operation needs `.unsafe` or `.nounsafe` |
 
 ## Commands
 
@@ -58,6 +91,7 @@ Ownership diagnostics are driven by `own var`, `move`, `using`, and explicit
 Message:
 
 ```text
+ZPP1001
 owned value must be paired with `using name;` or `name.deinit()`
 ```
 
@@ -91,6 +125,7 @@ Rules:
 Message:
 
 ```text
+ZPP1002
 owned value used after move
 ```
 
@@ -127,6 +162,7 @@ Rules:
 Message:
 
 ```text
+ZPP1003
 owned value moved after deinit
 ```
 
@@ -151,6 +187,7 @@ Rules:
 Message:
 
 ```text
+ZPP1004
 owned value deinitialized more than once
 ```
 
@@ -193,14 +230,14 @@ effect type system.
 
 Negative effects reject matching operations in the annotated function body.
 
-| Effect | Message |
-| --- | --- |
-| `.noalloc` | `effects(.noalloc) function contains allocation-like operation` |
-| `.noio` | `effects(.noio) function contains I/O-like operation` |
-| `.nonblocking` | `effects(.nonblocking) function contains blocking-like operation` |
-| `.nothread` | `effects(.nothread) function contains spawn-like operation` |
-| `.nodyn` | `effects(.nodyn) function contains dynamic-dispatch-like operation` |
-| `.nounsafe` | `effects(.nounsafe) function contains unsafe-like operation` |
+| Effect | Code | Message |
+| --- | --- | --- |
+| `.noalloc` | `ZPP2001` | `effects(.noalloc) function contains allocation-like operation` |
+| `.noio` | `ZPP2002` | `effects(.noio) function contains I/O-like operation` |
+| `.nonblocking` | `ZPP2003` | `effects(.nonblocking) function contains blocking-like operation` |
+| `.nothread` | `ZPP2004` | `effects(.nothread) function contains spawn-like operation` |
+| `.nodyn` | `ZPP2005` | `effects(.nodyn) function contains dynamic-dispatch-like operation` |
+| `.nounsafe` | `ZPP2006` | `effects(.nounsafe) function contains unsafe-like operation` |
 
 Example:
 
@@ -229,14 +266,14 @@ the operation must be declared with either a positive or negative effect.
 
 Warnings:
 
-| Operation | Message |
-| --- | --- |
-| allocation-like | `effects list must include .alloc for allocation-like operation` |
-| I/O-like | `effects list must include .io for I/O-like operation` |
-| blocking-like | `effects list must include .blocking for blocking-like operation` |
-| spawn-like | `effects list must include .spawn for spawn-like operation` |
-| dynamic-dispatch-like | `effects list must include .dyn for dynamic-dispatch-like operation` |
-| unsafe-like | `effects list must include .unsafe for unsafe-like operation` |
+| Operation | Code | Message |
+| --- | --- | --- |
+| allocation-like | `ZPP2101` | `effects list must include .alloc for allocation-like operation` |
+| I/O-like | `ZPP2102` | `effects list must include .io for I/O-like operation` |
+| blocking-like | `ZPP2103` | `effects list must include .blocking for blocking-like operation` |
+| spawn-like | `ZPP2104` | `effects list must include .spawn for spawn-like operation` |
+| dynamic-dispatch-like | `ZPP2105` | `effects list must include .dyn for dynamic-dispatch-like operation` |
+| unsafe-like | `ZPP2106` | `effects list must include .unsafe for unsafe-like operation` |
 
 Example:
 
@@ -334,7 +371,6 @@ costs must be visible in source and generated Zig.
 
 ## Current Limits
 
-- diagnostics do not have stable numeric or symbolic codes yet
 - ownership analysis is local to a source file and does not model branches
 - the checker strips line comments but does not parse full Zig syntax
 - effect detection is pattern-based and may have false positives or false

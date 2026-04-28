@@ -199,6 +199,8 @@ fn diagnosticsNotification(allocator: std.mem.Allocator, uri: []const u8, source
         try out.writer(allocator).print("{d}", .{character + 1});
         try out.appendSlice(allocator, "}},\"severity\":");
         try out.writer(allocator).print("{d}", .{lspSeverity(diag.severity)});
+        try out.appendSlice(allocator, ",\"code\":");
+        try appendJsonString(allocator, &out, diag.code);
         try out.appendSlice(allocator, ",\"source\":\"zpp\",\"message\":");
         try appendJsonString(allocator, &out, diag.message);
         try out.append(allocator, '}');
@@ -294,6 +296,7 @@ test "handlePayload publishes sema diagnostics for didOpen" {
     try std.testing.expect(result.body != null);
     try std.testing.expect(std.mem.indexOf(u8, result.body.?, "textDocument/publishDiagnostics") != null);
     try std.testing.expect(std.mem.indexOf(u8, result.body.?, "owned value must be paired") != null);
+    try std.testing.expect(std.mem.indexOf(u8, result.body.?, "\"code\":\"ZPP1001\"") != null);
     try std.testing.expect(std.mem.indexOf(u8, result.body.?, "\"severity\":1") != null);
 }
 

@@ -96,11 +96,12 @@ pub fn main() !void {
 
 fn printDiagnostics(path: []const u8, diags: []const zpp.diagnostics.Diagnostic) void {
     for (diags) |diag| {
-        std.debug.print("{s}:{d}:{d}: {s}: {s}\n", .{
+        std.debug.print("{s}:{d}:{d}: {s}[{s}]: {s}\n", .{
             path,
             diag.line,
             diag.column,
             severityLabel(diag.severity),
+            diag.code,
             diag.message,
         });
     }

@@ -83,9 +83,9 @@ fn checkOwnership(allocator: std.mem.Allocator, source: []const u8, bag: *diagno
             if (findOwnedIndex(owned.items, move.source)) |source_index| {
                 var source_value = &owned.items[source_index];
                 if (source_value.moved) {
-                    try bag.add(.err, line_no, columnOf(code, move.source), "owned value used after move");
+                    try bag.addWithCode(diagnostics.Code.owned_used_after_move, .err, line_no, columnOf(code, move.source), "owned value used after move");
                 } else if (source_value.deinitialized) {
-                    try bag.add(.err, line_no, columnOf(code, move.source), "owned value moved after deinit");
+                    try bag.addWithCode(diagnostics.Code.owned_moved_after_deinit, .err, line_no, columnOf(code, move.source), "owned value moved after deinit");
                 } else {
                     source_value.moved = true;
                     source_value.move_line = line_no;
@@ -103,9 +103,9 @@ fn checkOwnership(allocator: std.mem.Allocator, source: []const u8, bag: *diagno
             if (findOwnedIndex(owned.items, source_name)) |source_index| {
                 var source_value = &owned.items[source_index];
                 if (source_value.moved) {
-                    try bag.add(.err, line_no, columnOf(code, source_name), "owned value used after move");
+                    try bag.addWithCode(diagnostics.Code.owned_used_after_move, .err, line_no, columnOf(code, source_name), "owned value used after move");
                 } else if (source_value.deinitialized) {
-                    try bag.add(.err, line_no, columnOf(code, source_name), "owned value moved after deinit");
+                    try bag.addWithCode(diagnostics.Code.owned_moved_after_deinit, .err, line_no, columnOf(code, source_name), "owned value moved after deinit");
                 } else {
                     source_value.moved = true;
                     source_value.move_line = line_no;
@@ -129,14 +129,14 @@ fn checkOwnership(allocator: std.mem.Allocator, source: []const u8, bag: *diagno
                 !isCleanupOfName(trimmed, code, item.name) and
                 !isMoveOfName(trimmed, item.name))
             {
-                try bag.add(.err, line_no, columnOf(code, item.name), "owned value used after move");
+                try bag.addWithCode(diagnostics.Code.owned_used_after_move, .err, line_no, columnOf(code, item.name), "owned value used after move");
             }
         }
     }
 
     for (owned.items) |item| {
         if (!item.deinitialized and !item.moved) {
-            try bag.add(.err, item.declared_line, item.declared_column, "owned value must be paired with `using name;` or `name.deinit()`");
+            try bag.addWithCode(diagnostics.Code.owned_missing_cleanup, .err, item.declared_line, item.declared_column, "owned value must be paired with `using name;` or `name.deinit()`");
         }
     }
 }
@@ -160,11 +160,11 @@ fn markDeinitialized(
     const index = findOwnedIndex(owned, name) orelse return;
     var item = &owned[index];
     if (item.moved) {
-        try bag.add(.err, line_no, column, "owned value used after move");
+        try bag.addWithCode(diagnostics.Code.owned_used_after_move, .err, line_no, column, "owned value used after move");
         return;
     }
     if (item.deinitialized) {
-        try bag.add(.err, line_no, column, "owned value deinitialized more than once");
+        try bag.addWithCode(diagnostics.Code.owned_double_deinit, .err, line_no, column, "owned value deinitialized more than once");
         return;
     }
     item.deinitialized = true;
@@ -368,37 +368,37 @@ fn parseEffects(trimmed: []const u8) ?EffectSet {
 fn checkEffectLine(effects: EffectSet, code: []const u8, line_no: usize, bag: *diagnostics.Bag) !void {
     if (effects.noalloc) {
         if (firstAllocationColumn(code)) |column| {
-            try bag.add(.err, line_no, column, "effects(.noalloc) function contains allocation-like operation");
+            try bag.addWithCode(diagnostics.Code.effect_noalloc, .err, line_no, column, "effects(.noalloc) function contains allocation-like operation");
         }
     }
 
     if (effects.noio) {
         if (firstIoColumn(code)) |column| {
-            try bag.add(.err, line_no, column, "effects(.noio) function contains I/O-like operation");
+            try bag.addWithCode(diagnostics.Code.effect_noio, .err, line_no, column, "effects(.noio) function contains I/O-like operation");
         }
     }
 
     if (effects.nonblocking) {
         if (firstBlockingColumn(code)) |column| {
-            try bag.add(.err, line_no, column, "effects(.nonblocking) function contains blocking-like operation");
+            try bag.addWithCode(diagnostics.Code.effect_nonblocking, .err, line_no, column, "effects(.nonblocking) function contains blocking-like operation");
         }
     }
 
     if (effects.nothread) {
         if (firstSpawnColumn(code)) |column| {
-            try bag.add(.err, line_no, column, "effects(.nothread) function contains spawn-like operation");
+            try bag.addWithCode(diagnostics.Code.effect_nothread, .err, line_no, column, "effects(.nothread) function contains spawn-like operation");
         }
     }
 
     if (effects.nodyn) {
         if (firstDynColumn(code)) |column| {
-            try bag.add(.err, line_no, column, "effects(.nodyn) function contains dynamic-dispatch-like operation");
+            try bag.addWithCode(diagnostics.Code.effect_nodyn, .err, line_no, column, "effects(.nodyn) function contains dynamic-dispatch-like operation");
         }
     }
 
     if (effects.nounsafe) {
         if (firstUnsafeColumn(code)) |column| {
-            try bag.add(.err, line_no, column, "effects(.nounsafe) function contains unsafe-like operation");
+            try bag.addWithCode(diagnostics.Code.effect_nounsafe, .err, line_no, column, "effects(.nounsafe) function contains unsafe-like operation");
         }
     }
 
@@ -430,7 +430,14 @@ fn checkMissingVisibleEffect(
         .unsafe => firstUnsafeColumn(code),
     } orelse return;
 
-    try bag.add(.warning, line_no, column, switch (kind) {
+    try bag.addWithCode(switch (kind) {
+        .alloc => diagnostics.Code.missing_alloc_effect,
+        .io => diagnostics.Code.missing_io_effect,
+        .blocking => diagnostics.Code.missing_blocking_effect,
+        .spawn => diagnostics.Code.missing_spawn_effect,
+        .dyn => diagnostics.Code.missing_dyn_effect,
+        .unsafe => diagnostics.Code.missing_unsafe_effect,
+    }, .warning, line_no, column, switch (kind) {
         .alloc => "effects list must include .alloc for allocation-like operation",
         .io => "effects list must include .io for I/O-like operation",
         .blocking => "effects list must include .blocking for blocking-like operation",
@@ -543,6 +550,7 @@ test "must-deinit checker reports missing cleanup" {
 
     try std.testing.expectEqual(@as(usize, 1), diags.len);
     try std.testing.expectEqual(diagnostics.Severity.err, diags[0].severity);
+    try std.testing.expectEqualStrings(diagnostics.Code.owned_missing_cleanup, diags[0].code);
 }
 
 test "must-deinit checker accepts using" {
@@ -572,6 +580,7 @@ test "must-deinit checker reports double cleanup" {
     defer std.testing.allocator.free(diags);
 
     try std.testing.expectEqual(@as(usize, 1), diags.len);
+    try std.testing.expectEqualStrings(diagnostics.Code.owned_double_deinit, diags[0].code);
     try std.testing.expectEqualStrings("owned value deinitialized more than once", diags[0].message);
 }
 
@@ -589,6 +598,7 @@ test "must-deinit checker reports use after move" {
     defer std.testing.allocator.free(diags);
 
     try std.testing.expectEqual(@as(usize, 1), diags.len);
+    try std.testing.expectEqualStrings(diagnostics.Code.owned_used_after_move, diags[0].code);
     try std.testing.expectEqualStrings("owned value used after move", diags[0].message);
 }
 
@@ -605,6 +615,7 @@ test "must-deinit checker requires moved destination cleanup" {
 
     try std.testing.expectEqual(@as(usize, 1), diags.len);
     try std.testing.expectEqual(@as(usize, 3), diags[0].line);
+    try std.testing.expectEqualStrings(diagnostics.Code.owned_missing_cleanup, diags[0].code);
 }
 
 test "must-deinit checker does not duplicate own var move destination" {
@@ -636,6 +647,7 @@ test "must-deinit checker reports one cleanup after move diagnostic" {
     defer std.testing.allocator.free(diags);
 
     try std.testing.expectEqual(@as(usize, 1), diags.len);
+    try std.testing.expectEqualStrings(diagnostics.Code.owned_used_after_move, diags[0].code);
     try std.testing.expectEqualStrings("owned value used after move", diags[0].message);
 }
 
@@ -672,6 +684,7 @@ test "effect checker reports noalloc violation" {
     defer std.testing.allocator.free(diags);
 
     try std.testing.expectEqual(@as(usize, 1), diags.len);
+    try std.testing.expectEqualStrings(diagnostics.Code.effect_noalloc, diags[0].code);
     try std.testing.expectEqualStrings("effects(.noalloc) function contains allocation-like operation", diags[0].message);
 }
 
@@ -688,6 +701,7 @@ test "effect checker reports noio violation" {
     defer std.testing.allocator.free(diags);
 
     try std.testing.expectEqual(@as(usize, 1), diags.len);
+    try std.testing.expectEqualStrings(diagnostics.Code.effect_noio, diags[0].code);
     try std.testing.expectEqualStrings("effects(.noio) function contains I/O-like operation", diags[0].message);
 }
 
@@ -705,6 +719,7 @@ test "effect checker reports omitted unsafe visibility" {
 
     try std.testing.expectEqual(@as(usize, 1), diags.len);
     try std.testing.expectEqual(diagnostics.Severity.warning, diags[0].severity);
+    try std.testing.expectEqualStrings(diagnostics.Code.missing_unsafe_effect, diags[0].code);
     try std.testing.expectEqualStrings("effects list must include .unsafe for unsafe-like operation", diags[0].message);
 }
 
@@ -721,6 +736,7 @@ test "effect checker reports nothread violation" {
     defer std.testing.allocator.free(diags);
 
     try std.testing.expectEqual(@as(usize, 1), diags.len);
+    try std.testing.expectEqualStrings(diagnostics.Code.effect_nothread, diags[0].code);
     try std.testing.expectEqualStrings("effects(.nothread) function contains spawn-like operation", diags[0].message);
 }
 
