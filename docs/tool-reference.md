@@ -125,7 +125,7 @@ Failure policy:
 Usage:
 
 ```text
-zpp-package <package.json> (--audit | --api [-o output.jsonl] | --doc [-o output.md] | --api-check [baseline.jsonl] | --api-check-compatible [baseline.jsonl]) [--deny-warnings]
+zpp-package <package.json> (--audit | --api [-o output.jsonl] | --doc [-o output.md] | --doc-check [baseline.md] | --api-check [baseline.jsonl] | --api-check-compatible [baseline.jsonl]) [--deny-warnings]
 ```
 
 Purpose:
@@ -133,6 +133,7 @@ Purpose:
 - reads a package manifest
 - audits all package sources
 - generates package API manifests and docs
+- checks generated package docs against a baseline
 - checks package API baselines
 
 Examples:
@@ -141,6 +142,7 @@ Examples:
 zig build package-zpp -- zpp-package.json --audit
 zig build package-zpp -- zpp-package.json --api
 zig build package-zpp -- zpp-package.json --doc
+zig build package-zpp -- zpp-package.json --doc-check
 zig build package-zpp -- zpp-package.json --api-check
 zig build package-zpp -- zpp-package.json --api-check-compatible
 ```
@@ -151,6 +153,7 @@ Failure policy:
 - audit errors fail
 - audit warnings fail only with `--deny-warnings` or `-Werror`
 - API checks fail when their manifest policy is violated
+- `--doc-check` fails when generated Markdown differs from the baseline
 
 ## `zpp-doc`
 

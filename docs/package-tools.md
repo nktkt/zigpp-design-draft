@@ -13,7 +13,7 @@ The prototype has three related tools:
 - `zpp-api`: generates and checks JSON Lines API manifests for one or more
   `.zpp` source files
 - `zpp-package`: reads a package manifest and runs audit, docs, API generation,
-  or API compatibility checks across the package source list
+  docs drift checks, or API compatibility checks across the package source list
 
 Use `zpp-package` for repository CI. Use `zpp-doc` and `zpp-api` directly when
 iterating on one file or debugging manifest output.
@@ -51,7 +51,7 @@ Fields:
 | `sources` | yes | Ordered list of `.zpp` files to audit and document |
 | `api_output` | no | Default output path for `--api` |
 | `api_baseline` | no | Default baseline path for API checks |
-| `docs_output` | no | Default output path for `--doc` |
+| `docs_output` | no | Default output path for `--doc` and baseline path for `--doc-check` |
 
 Unknown JSON fields are ignored by the current parser, so experiments can add
 metadata without breaking the prototype tools.
@@ -76,6 +76,12 @@ Generate package docs to the manifest's `docs_output`:
 zig build package-zpp -- zpp-package.json --doc
 ```
 
+Require generated package docs to match the manifest's `docs_output`:
+
+```sh
+zig build package-zpp -- zpp-package.json --doc-check
+```
+
 Require the generated API manifest to exactly match the baseline:
 
 ```sh
@@ -93,6 +99,7 @@ Override output or baseline paths explicitly:
 ```sh
 zig build package-zpp -- zpp-package.json --api -o /tmp/package.api.jsonl
 zig build package-zpp -- zpp-package.json --api-check /tmp/package.api.jsonl
+zig build package-zpp -- zpp-package.json --doc-check /tmp/package.md
 ```
 
 Treat warnings as failures during audit:
@@ -163,8 +170,9 @@ compatibility model.
 
 ## Documentation Output
 
-`zpp-doc` and `zpp-package --doc` generate Markdown API notes. The output is
-intended for quick review, not polished reference documentation.
+`zpp-doc` and `zpp-package --doc` generate Markdown API notes. `zpp-package
+--doc-check` compares generated package docs with the checked-in baseline. The
+output is intended for quick review, not polished reference documentation.
 
 The generated docs currently include:
 
@@ -191,11 +199,11 @@ This policy keeps four surfaces under review:
 - unit and behavior tests
 - `.zpp` lowering fixtures
 - generated Zig compile checks
-- package diagnostics and API baseline drift
+- package diagnostics, API baseline drift, and docs baseline drift
 
-The `ci` build step expands to `zig build test`, package audit, and package API
-baseline checks. `zig build test` already includes fixture and compile-fixture
-checks.
+The `ci` build step expands to `zig build test`, package audit, package API
+baseline checks, and package docs baseline checks. `zig build test` already
+includes fixture and compile-fixture checks.
 
 When changing public examples or API extraction, regenerate the checked-in
 package outputs and commit them with the source change:

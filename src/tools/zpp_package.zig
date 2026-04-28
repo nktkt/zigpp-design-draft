@@ -4,7 +4,7 @@ const zpp_api = @import("zpp_api.zig");
 const zpp_doc = @import("zpp_doc.zig");
 
 const usage =
-    \\usage: zpp-package <package.json> (--audit | --api [-o output.jsonl] | --doc [-o output.md] | --api-check [baseline.jsonl] | --api-check-compatible [baseline.jsonl]) [--deny-warnings]
+    \\usage: zpp-package <package.json> (--audit | --api [-o output.jsonl] | --doc [-o output.md] | --doc-check [baseline.md] | --api-check [baseline.jsonl] | --api-check-compatible [baseline.jsonl]) [--deny-warnings]
     \\
     \\Package manifest format:
     \\{
@@ -32,6 +32,7 @@ const Command = enum {
     audit,
     api,
     doc,
+    doc_check,
     api_check,
     api_check_compatible,
 };
@@ -87,6 +88,12 @@ pub fn main() !void {
             try setCommand(&command, .api);
         } else if (std.mem.eql(u8, arg, "--doc")) {
             try setCommand(&command, .doc);
+        } else if (std.mem.eql(u8, arg, "--doc-check")) {
+            try setCommand(&command, .doc_check);
+            if (i + 1 < args.len and !std.mem.startsWith(u8, args[i + 1], "-")) {
+                i += 1;
+                baseline_path = args[i];
+            }
         } else if (std.mem.eql(u8, arg, "--api-check")) {
             try setCommand(&command, .api_check);
             if (i + 1 < args.len and !std.mem.startsWith(u8, args[i + 1], "-")) {
@@ -154,6 +161,17 @@ pub fn main() !void {
                 try std.fs.File.stdout().writeAll(markdown);
             }
         },
+        .doc_check => {
+            const baseline = try readDocBaseline(allocator, baseline_path, package);
+            defer allocator.free(baseline);
+            const markdown = try generatePackageDocs(allocator, package);
+            defer allocator.free(markdown);
+
+            if (!manifestsEqual(baseline, markdown)) {
+                std.debug.print("zpp-package: docs output differs from {s}\n", .{resolveDocBaselinePath(baseline_path, package) orelse ""});
+                std.process.exit(1);
+            }
+        },
         .api_check => {
             const baseline = try readBaseline(allocator, baseline_path, package);
             defer allocator.free(baseline);
@@ -207,9 +225,23 @@ fn readBaseline(allocator: std.mem.Allocator, path: ?[]const u8, package: Packag
     return std.fs.cwd().readFileAlloc(allocator, baseline_path, 16 * 1024 * 1024);
 }
 
+fn readDocBaseline(allocator: std.mem.Allocator, path: ?[]const u8, package: PackageManifest) ![]u8 {
+    const baseline_path = resolveDocBaselinePath(path, package) orelse {
+        try std.fs.File.stderr().writeAll("zpp-package: docs baseline path is required\n");
+        std.process.exit(2);
+    };
+    return std.fs.cwd().readFileAlloc(allocator, baseline_path, 16 * 1024 * 1024);
+}
+
 fn resolveBaselinePath(path: ?[]const u8, package: PackageManifest) ?[]const u8 {
     if (path) |explicit| return explicit;
     if (package.api_baseline.len != 0) return package.api_baseline;
+    return null;
+}
+
+fn resolveDocBaselinePath(path: ?[]const u8, package: PackageManifest) ?[]const u8 {
+    if (path) |explicit| return explicit;
+    if (package.docs_output.len != 0) return package.docs_output;
     return null;
 }
 
@@ -433,6 +465,8 @@ test "package defaults resolve output and baseline paths" {
     try std.testing.expectEqualStrings("docs/sample-api.md", resolveOutputPath(null, package.docs_output).?);
     try std.testing.expectEqualStrings("docs/sample.api.jsonl", resolveBaselinePath(null, package).?);
     try std.testing.expectEqualStrings("baseline.jsonl", resolveBaselinePath("baseline.jsonl", package).?);
+    try std.testing.expectEqualStrings("docs/sample-api.md", resolveDocBaselinePath(null, package).?);
+    try std.testing.expectEqualStrings("baseline.md", resolveDocBaselinePath("baseline.md", package).?);
 }
 
 test "compatible manifest helper catches missing line" {

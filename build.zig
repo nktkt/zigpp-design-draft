@@ -292,8 +292,12 @@ pub fn build(b: *std.Build) void {
     const run_ci_api_check = b.addRunArtifact(package_exe);
     run_ci_api_check.addArgs(&.{ "zpp-package.json", "--api-check" });
 
+    const run_ci_doc_check = b.addRunArtifact(package_exe);
+    run_ci_doc_check.addArgs(&.{ "zpp-package.json", "--doc-check" });
+
     const ci_step = b.step("ci", "Run the same checks as GitHub Actions");
     ci_step.dependOn(test_step);
     ci_step.dependOn(&run_ci_package_audit.step);
     ci_step.dependOn(&run_ci_api_check.step);
+    ci_step.dependOn(&run_ci_doc_check.step);
 }
