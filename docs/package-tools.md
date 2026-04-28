@@ -147,6 +147,8 @@ helpers are omitted from the API manifest.
 
 `--api-check` compares the generated manifest with the baseline after trimming
 trailing whitespace. Any changed, added, removed, or reordered line fails.
+When it fails, `zpp-package` prints the first differing line with the baseline
+value as `expected` and the generated value as `actual`.
 
 Use it when the baseline is intended to be exact:
 
@@ -155,7 +157,8 @@ zig build package-zpp -- zpp-package.json --api-check
 ```
 
 `--api-check-compatible` checks only that every non-empty baseline line still
-exists in the generated manifest. Added lines are allowed.
+exists in the generated manifest. Added lines are allowed. When compatibility
+fails, the output includes the first missing baseline line.
 
 Use it when additive public API changes are acceptable:
 
@@ -172,7 +175,9 @@ compatibility model.
 
 `zpp-doc` and `zpp-package --doc` generate Markdown API notes. `zpp-package
 --doc-check` compares generated package docs with the checked-in baseline. The
-output is intended for quick review, not polished reference documentation.
+output is intended for quick review, not polished reference documentation. Drift
+failures include the first differing Markdown line so CI logs point at the
+changed section before opening a local diff.
 
 The generated docs currently include:
 

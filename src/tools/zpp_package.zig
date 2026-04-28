@@ -169,6 +169,7 @@ pub fn main() !void {
 
             if (!manifestsEqual(baseline, markdown)) {
                 std.debug.print("zpp-package: docs output differs from {s}\n", .{resolveDocBaselinePath(baseline_path, package) orelse ""});
+                printFirstDifference(baseline, markdown);
                 std.process.exit(1);
             }
         },
@@ -180,6 +181,7 @@ pub fn main() !void {
 
             if (!manifestsEqual(baseline, manifest)) {
                 std.debug.print("zpp-package: API manifest differs from {s}\n", .{resolveBaselinePath(baseline_path, package) orelse ""});
+                printFirstDifference(baseline, manifest);
                 std.process.exit(1);
             }
         },
@@ -192,6 +194,9 @@ pub fn main() !void {
             const missing = countMissingManifestLines(baseline, manifest);
             if (missing != 0) {
                 std.debug.print("zpp-package: incompatible API manifest: {d} baseline line(s) missing\n", .{missing});
+                if (firstMissingManifestLine(baseline, manifest)) |line| {
+                    std.debug.print("  first missing baseline line: {s}\n", .{line});
+                }
                 std.process.exit(1);
             }
         },
@@ -372,6 +377,57 @@ fn manifestsEqual(expected: []const u8, actual: []const u8) bool {
     return std.mem.eql(u8, normalized_expected, normalized_actual);
 }
 
+const Difference = struct {
+    line: usize,
+    expected: ?[]const u8,
+    actual: ?[]const u8,
+};
+
+fn firstDifference(expected: []const u8, actual: []const u8) ?Difference {
+    const normalized_expected = std.mem.trimRight(u8, expected, " \t\r\n");
+    const normalized_actual = std.mem.trimRight(u8, actual, " \t\r\n");
+
+    var expected_lines = std.mem.splitScalar(u8, normalized_expected, '\n');
+    var actual_lines = std.mem.splitScalar(u8, normalized_actual, '\n');
+    var line: usize = 1;
+
+    while (true) : (line += 1) {
+        const expected_line = expected_lines.next();
+        const actual_line = actual_lines.next();
+
+        if (expected_line == null and actual_line == null) return null;
+        if (expected_line == null or actual_line == null) {
+            return .{
+                .line = line,
+                .expected = expected_line,
+                .actual = actual_line,
+            };
+        }
+        if (!std.mem.eql(u8, expected_line.?, actual_line.?)) {
+            return .{
+                .line = line,
+                .expected = expected_line,
+                .actual = actual_line,
+            };
+        }
+    }
+}
+
+fn printFirstDifference(expected: []const u8, actual: []const u8) void {
+    const difference = firstDifference(expected, actual) orelse return;
+    std.debug.print("  first difference at line {d}\n", .{difference.line});
+    printDifferenceLine("expected", difference.expected);
+    printDifferenceLine("actual", difference.actual);
+}
+
+fn printDifferenceLine(label: []const u8, line: ?[]const u8) void {
+    if (line) |value| {
+        std.debug.print("  {s}: {s}\n", .{ label, value });
+    } else {
+        std.debug.print("  {s}: <end of file>\n", .{label});
+    }
+}
+
 fn countMissingManifestLines(baseline: []const u8, actual: []const u8) usize {
     var missing: usize = 0;
     var lines = std.mem.splitScalar(u8, baseline, '\n');
@@ -381,6 +437,16 @@ fn countMissingManifestLines(baseline: []const u8, actual: []const u8) usize {
         if (!manifestContainsLine(actual, line)) missing += 1;
     }
     return missing;
+}
+
+fn firstMissingManifestLine(baseline: []const u8, actual: []const u8) ?[]const u8 {
+    var lines = std.mem.splitScalar(u8, baseline, '\n');
+    while (lines.next()) |raw_line| {
+        const line = std.mem.trimRight(u8, raw_line, " \t\r");
+        if (line.len == 0) continue;
+        if (!manifestContainsLine(actual, line)) return line;
+    }
+    return null;
 }
 
 fn manifestContainsLine(manifest: []const u8, needle: []const u8) bool {
@@ -478,4 +544,21 @@ test "compatible manifest helper catches missing line" {
         "{\"kind\":\"trait\",\"name\":\"Writer\"}\n";
 
     try std.testing.expectEqual(@as(usize, 1), countMissingManifestLines(baseline, actual));
+    try std.testing.expectEqualStrings("{\"kind\":\"function\",\"name\":\"main\"}", firstMissingManifestLine(baseline, actual).?);
+}
+
+test "firstDifference reports changed and missing lines" {
+    const changed = firstDifference("one\ntwo\nthree\n", "one\nTWO\nthree\n").?;
+    try std.testing.expectEqual(@as(usize, 2), changed.line);
+    try std.testing.expectEqualStrings("two", changed.expected.?);
+    try std.testing.expectEqualStrings("TWO", changed.actual.?);
+
+    const missing = firstDifference("one\ntwo\n", "one\n").?;
+    try std.testing.expectEqual(@as(usize, 2), missing.line);
+    try std.testing.expectEqualStrings("two", missing.expected.?);
+    try std.testing.expectEqual(@as(?[]const u8, null), missing.actual);
+}
+
+test "firstDifference follows manifest equality normalization" {
+    try std.testing.expect(firstDifference("one\n\n", "one") == null);
 }

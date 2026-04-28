@@ -155,6 +155,9 @@ Failure policy:
 - audit warnings fail only with `--deny-warnings` or `-Werror`
 - API checks fail when their manifest policy is violated
 - `--doc-check` fails when generated Markdown differs from the baseline
+- exact API and docs drift failures print the first differing line as
+  `expected` versus `actual`
+- compatible API drift failures print the first missing baseline line
 
 ## `zpp-doc`
 
