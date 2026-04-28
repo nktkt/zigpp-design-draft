@@ -161,18 +161,11 @@ docs/
 tests/
 ```
 
-## Draft
+## Documentation
 
-The original design draft is kept in
-[docs/zigpp-design-draft-v0.1.md](docs/zigpp-design-draft-v0.1.md).
-Implemented lowering rules are documented in
-[docs/lowering-rules.md](docs/lowering-rules.md).
-Current diagnostics are documented in
-[docs/diagnostics.md](docs/diagnostics.md).
-Package, docs, and API manifest tooling are documented in
-[docs/package-tools.md](docs/package-tools.md).
-The codebase architecture is documented in
-[docs/architecture.md](docs/architecture.md).
+The documentation index is [docs/README.md](docs/README.md). It links to the
+design draft, lowering rules, diagnostics, package tooling, architecture notes,
+and generated example API docs.
 
 ## Roadmap
 
