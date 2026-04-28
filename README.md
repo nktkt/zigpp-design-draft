@@ -165,6 +165,8 @@ tests/
 
 The original design draft is kept in
 [docs/zigpp-design-draft-v0.1.md](docs/zigpp-design-draft-v0.1.md).
+Implemented lowering rules are documented in
+[docs/lowering-rules.md](docs/lowering-rules.md).
 
 ## Roadmap
 
