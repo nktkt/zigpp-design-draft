@@ -169,6 +169,8 @@ Implemented lowering rules are documented in
 [docs/lowering-rules.md](docs/lowering-rules.md).
 Current diagnostics are documented in
 [docs/diagnostics.md](docs/diagnostics.md).
+Package, docs, and API manifest tooling are documented in
+[docs/package-tools.md](docs/package-tools.md).
 
 ## Roadmap
 
