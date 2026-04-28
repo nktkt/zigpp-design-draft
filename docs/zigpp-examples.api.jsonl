@@ -1,0 +1,12 @@
+{"kind":"function","path":"examples/contracts.zpp","name":"main","signature":"pub fn main() void","effects":"","bounds":[],"contracts":[]}
+{"kind":"function","path":"examples/derive_user.zpp","name":"main","signature":"pub fn main() void","effects":"","bounds":[],"contracts":[]}
+{"kind":"trait","path":"examples/hello_trait.zpp","name":"Writer"}
+{"kind":"trait_method","path":"examples/hello_trait.zpp","owner":"Writer","name":"write","signature":"fn write(self, bytes: []const u8) !usize;"}
+{"kind":"owned_struct","path":"examples/hello_trait.zpp","name":"FileWriter"}
+{"kind":"function","path":"examples/hello_trait.zpp","name":"main","signature":"pub fn main() !void","effects":"","bounds":[],"contracts":[]}
+{"kind":"function","path":"examples/noalloc_hash.zpp","name":"main","signature":"pub fn main() void","effects":"","bounds":[],"contracts":[]}
+{"kind":"owned_struct","path":"examples/owned_buffer.zpp","name":"Buffer"}
+{"kind":"function","path":"examples/owned_buffer.zpp","name":"main","signature":"pub fn main() !void","effects":"","bounds":[],"contracts":[]}
+{"kind":"trait","path":"examples/where_constraints.zpp","name":"Ord"}
+{"kind":"trait_method","path":"examples/where_constraints.zpp","owner":"Ord","name":"rank","signature":"fn rank(self) u32;"}
+{"kind":"function","path":"examples/where_constraints.zpp","name":"main","signature":"pub fn main() void","effects":"","bounds":[],"contracts":[]}

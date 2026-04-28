@@ -105,9 +105,9 @@ Use the package manifest:
 
 ```sh
 zig build package-zpp -- zpp-package.json --audit
-zig build package-zpp -- zpp-package.json --api -o /tmp/package.api.jsonl
-zig build package-zpp -- zpp-package.json --doc -o /tmp/package-api.md
-zig build package-zpp -- zpp-package.json --api-check-compatible /tmp/package.api.jsonl
+zig build package-zpp -- zpp-package.json --api
+zig build package-zpp -- zpp-package.json --doc
+zig build package-zpp -- zpp-package.json --api-check-compatible
 ```
 
 Run fixture checks:

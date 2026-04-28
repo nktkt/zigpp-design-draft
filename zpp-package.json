@@ -1,6 +1,9 @@
 {
   "name": "zigpp-examples",
   "version": "0.1.0",
+  "api_output": "docs/zigpp-examples.api.jsonl",
+  "api_baseline": "docs/zigpp-examples.api.jsonl",
+  "docs_output": "docs/zigpp-examples-api.md",
   "sources": [
     "examples/contracts.zpp",
     "examples/derive_user.zpp",
