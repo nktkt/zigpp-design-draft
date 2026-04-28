@@ -1,5 +1,7 @@
 # Zig++ Design Draft v0.1
 
+[![CI](https://github.com/nktkt/zigpp-design-draft/actions/workflows/ci.yml/badge.svg)](https://github.com/nktkt/zigpp-design-draft/actions/workflows/ci.yml)
+
 This repository is an experimental research scaffold for **Zig++**, a visible
 high-level language layer over Zig.
 

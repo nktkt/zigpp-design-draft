@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  zig:
+    name: Zig 0.15.2
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.15.2
+
+      - name: Run tests
+        run: zig build test
+
+      - name: Run fixture tests
+        run: zig build fixture-test
+
+      - name: Compile generated fixtures
+        run: zig build compile-fixtures
+
+      - name: Audit package manifest
+        run: zig build package-zpp -- zpp-package.json --audit
+
+      - name: Check API baseline
+        run: zig build package-zpp -- zpp-package.json --api-check
