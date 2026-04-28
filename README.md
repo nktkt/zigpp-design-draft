@@ -166,6 +166,10 @@ tests/
 The original design draft is kept in
 [docs/zigpp-design-draft-v0.1.md](docs/zigpp-design-draft-v0.1.md).
 
+## Roadmap
+
+The implementation roadmap is tracked in [ROADMAP.md](ROADMAP.md).
+
 ## Contributing
 
 This project is intentionally experimental. Contributions should keep the
