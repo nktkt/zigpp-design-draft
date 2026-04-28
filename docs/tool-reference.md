@@ -183,7 +183,7 @@ prototype documentation, not final reference docs.
 Usage:
 
 ```text
-zpp-fmt <file.zpp>...
+zpp-fmt [--check] <file.zpp>...
 ```
 
 Purpose:
@@ -191,16 +191,24 @@ Purpose:
 - formats files in place
 - trims trailing whitespace
 - collapses repeated blank lines
+- reports formatting drift without writing files when `--check` is used
 
 Example:
 
 ```sh
 ./zig-out/bin/zpp-fmt examples/hello_trait.zpp examples/noalloc_hash.zpp
+./zig-out/bin/zpp-fmt --check examples/hello_trait.zpp examples/noalloc_hash.zpp
 ```
+
+Failure policy:
+
+- normal mode writes changes in place
+- `--check` prints `zpp-fmt: would change <path>` and exits `1` when a file
+  would be rewritten
+- unknown options fail with usage error
 
 Current limits:
 
-- there is no `--check` mode yet
 - formatting is conservative and line-oriented
 - it does not parse or reflow Zig++ syntax
 

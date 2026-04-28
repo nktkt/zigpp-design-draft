@@ -289,6 +289,31 @@ pub fn build(b: *std.Build) void {
     const run_ci_package_audit = b.addRunArtifact(package_exe);
     run_ci_package_audit.addArgs(&.{ "zpp-package.json", "--audit" });
 
+    const run_ci_fmt_check = b.addRunArtifact(fmt_exe);
+    run_ci_fmt_check.addArgs(&.{
+        "--check",
+        "examples/contracts.zpp",
+        "examples/derive_user.zpp",
+        "examples/dyn_plugin.zpp",
+        "examples/effects_visibility.zpp",
+        "examples/hello_trait.zpp",
+        "examples/noalloc_hash.zpp",
+        "examples/owned_buffer.zpp",
+        "examples/where_constraints.zpp",
+        "tests/compile/missing_trait_method.zpp",
+        "tests/diagnostics/double_deinit.zpp",
+        "tests/diagnostics/effect_blocking.zpp",
+        "tests/diagnostics/effect_dyn.zpp",
+        "tests/diagnostics/effect_noalloc.zpp",
+        "tests/diagnostics/effect_noio.zpp",
+        "tests/diagnostics/effect_nothread.zpp",
+        "tests/diagnostics/effect_unsafe.zpp",
+        "tests/diagnostics/missing_deinit.zpp",
+        "tests/diagnostics/moved_missing_deinit.zpp",
+        "tests/diagnostics/use_after_move.zpp",
+        "tests/lowering/using.zpp",
+    });
+
     const run_ci_api_check = b.addRunArtifact(package_exe);
     run_ci_api_check.addArgs(&.{ "zpp-package.json", "--api-check" });
 
@@ -297,6 +322,7 @@ pub fn build(b: *std.Build) void {
 
     const ci_step = b.step("ci", "Run the same checks as GitHub Actions");
     ci_step.dependOn(test_step);
+    ci_step.dependOn(&run_ci_fmt_check.step);
     ci_step.dependOn(&run_ci_package_audit.step);
     ci_step.dependOn(&run_ci_api_check.step);
     ci_step.dependOn(&run_ci_doc_check.step);
