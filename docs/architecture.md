@@ -133,6 +133,7 @@ zig build audit-zpp -- examples/hello_trait.zpp
 zig build api-zpp -- examples/hello_trait.zpp
 zig build doc-zpp -- examples/hello_trait.zpp
 zig build package-zpp -- zpp-package.json --audit
+zig build package-zpp -- zpp-package.json --fmt-check
 ```
 
 `zig build test` runs:
@@ -142,9 +143,9 @@ zig build package-zpp -- zpp-package.json --audit
 - fixture lowering tests
 - generated Zig compile fixture checks
 
-`zig build ci` runs `zig build test` plus `.zpp` formatter checks, package
-audit, API baseline checks, and docs baseline checks. It is the local equivalent
-of the GitHub Actions workflow.
+`zig build ci` runs `zig build test` plus manifest-driven `.zpp` formatter
+checks, package audit, API baseline checks, and docs baseline checks. It is the
+local equivalent of the GitHub Actions workflow.
 
 ## Fixtures and Examples
 

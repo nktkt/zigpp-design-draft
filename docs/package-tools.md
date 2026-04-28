@@ -1,9 +1,10 @@
 # Package Tools
 
 Zig++ includes small package-level tools for auditing source files, generating
-API notes, producing JSON Lines API manifests, and checking API compatibility.
-These tools are intentionally conservative. They are designed to make source
-costs and public surface changes visible in CI before the language is stable.
+API notes, producing JSON Lines API manifests, checking source formatting, and
+checking API compatibility. These tools are intentionally conservative. They are
+designed to make source costs and public surface changes visible in CI before
+the language is stable.
 
 ## Tool Layers
 
@@ -13,7 +14,8 @@ The prototype has three related tools:
 - `zpp-api`: generates and checks JSON Lines API manifests for one or more
   `.zpp` source files
 - `zpp-package`: reads a package manifest and runs audit, docs, API generation,
-  docs drift checks, or API compatibility checks across the package source list
+  format checks, docs drift checks, or API compatibility checks across the
+  package source lists
 
 Use `zpp-package` for repository CI. Use `zpp-doc` and `zpp-api` directly when
 iterating on one file or debugging manifest output.
@@ -38,6 +40,13 @@ The package manifest is JSON. The current repository uses
     "examples/noalloc_hash.zpp",
     "examples/owned_buffer.zpp",
     "examples/where_constraints.zpp"
+  ],
+  "format_sources": [
+    "examples/contracts.zpp",
+    "examples/derive_user.zpp",
+    "examples/dyn_plugin.zpp",
+    "tests/diagnostics/missing_deinit.zpp",
+    "tests/lowering/using.zpp"
   ]
 }
 ```
@@ -49,6 +58,7 @@ Fields:
 | `name` | yes | Package name used in command output |
 | `version` | no | Informational package version |
 | `sources` | yes | Ordered list of `.zpp` files to audit and document |
+| `format_sources` | no | Ordered list of `.zpp` files checked by `--fmt-check`; defaults to `sources` |
 | `api_output` | no | Default output path for `--api` |
 | `api_baseline` | no | Default baseline path for API checks |
 | `docs_output` | no | Default output path for `--doc` and baseline path for `--doc-check` |
@@ -74,6 +84,12 @@ Generate package docs to the manifest's `docs_output`:
 
 ```sh
 zig build package-zpp -- zpp-package.json --doc
+```
+
+Require all package format sources to match `zpp-fmt` output:
+
+```sh
+zig build package-zpp -- zpp-package.json --fmt-check
 ```
 
 Require generated package docs to match the manifest's `docs_output`:
@@ -199,13 +215,14 @@ The current GitHub Actions workflow runs:
 zig build ci
 ```
 
-This policy keeps five surfaces under review:
+This policy keeps six surfaces under review:
 
 - unit and behavior tests
 - `.zpp` source formatting
 - `.zpp` lowering fixtures
 - generated Zig compile checks
 - package diagnostics, API baseline drift, and docs baseline drift
+- manifest-driven `.zpp` source formatting
 
 The `ci` build step expands to `zig build test`, formatter checks, package
 audit, package API baseline checks, and package docs baseline checks. `zig build

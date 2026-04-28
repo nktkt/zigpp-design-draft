@@ -74,7 +74,8 @@ The build installs these tools:
 - `zpp-doc`: single-file Markdown API docs
 - `zpp-api`: JSON Lines public API manifest and compatibility checks
 - `zpp-audit`: multi-file diagnostic audit
-- `zpp-package`: package manifest commands for audit, API, compatibility, and docs
+- `zpp-package`: package manifest commands for audit, formatting, API,
+  compatibility, and docs
 - `zpp-lsp`: minimal LSP server with diagnostics
 - `zpp-migrate`: conservative Zig-to-Zig++ cleanup migration helper
 
@@ -108,6 +109,7 @@ Use the package manifest:
 
 ```sh
 zig build package-zpp -- zpp-package.json --audit
+zig build package-zpp -- zpp-package.json --fmt-check
 zig build package-zpp -- zpp-package.json --api
 zig build package-zpp -- zpp-package.json --doc
 zig build package-zpp -- zpp-package.json --doc-check

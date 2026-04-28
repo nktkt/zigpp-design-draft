@@ -2,15 +2,17 @@ const std = @import("std");
 const zpp = @import("zpp");
 const zpp_api = @import("zpp_api.zig");
 const zpp_doc = @import("zpp_doc.zig");
+const zpp_fmt = @import("zpp_fmt.zig");
 
 const usage =
-    \\usage: zpp-package <package.json> (--audit | --api [-o output.jsonl] | --doc [-o output.md] | --doc-check [baseline.md] | --api-check [baseline.jsonl] | --api-check-compatible [baseline.jsonl]) [--deny-warnings]
+    \\usage: zpp-package <package.json> (--audit | --fmt-check | --api [-o output.jsonl] | --doc [-o output.md] | --doc-check [baseline.md] | --api-check [baseline.jsonl] | --api-check-compatible [baseline.jsonl]) [--deny-warnings]
     \\
     \\Package manifest format:
     \\{
     \\  "name": "example",
     \\  "version": "0.1.0",
     \\  "sources": ["examples/hello_trait.zpp"],
+    \\  "format_sources": ["examples/hello_trait.zpp", "tests/lowering/using.zpp"],
     \\  "api_output": "docs/example.api.jsonl",
     \\  "api_baseline": "docs/example.api.jsonl",
     \\  "docs_output": "docs/example-api.md"
@@ -22,6 +24,7 @@ const PackageManifest = struct {
     name: []const u8,
     version: []const u8 = "",
     sources: []const []const u8,
+    format_sources: []const []const u8 = &.{},
     api_output: []const u8 = "",
     api_baseline: []const u8 = "",
     docs_output: []const u8 = "",
@@ -30,6 +33,7 @@ const PackageManifest = struct {
 const Command = enum {
     none,
     audit,
+    fmt_check,
     api,
     doc,
     doc_check,
@@ -84,6 +88,8 @@ pub fn main() !void {
             return;
         } else if (std.mem.eql(u8, arg, "--audit")) {
             try setCommand(&command, .audit);
+        } else if (std.mem.eql(u8, arg, "--fmt-check")) {
+            try setCommand(&command, .fmt_check);
         } else if (std.mem.eql(u8, arg, "--api")) {
             try setCommand(&command, .api);
         } else if (std.mem.eql(u8, arg, "--doc")) {
@@ -140,6 +146,13 @@ pub fn main() !void {
                 counts.notes,
             });
             if (auditFails(counts, deny_warnings)) {
+                std.process.exit(1);
+            }
+        },
+        .fmt_check => {
+            const changed = try formatCheckPackage(allocator, package);
+            if (changed != 0) {
+                std.debug.print("zpp-package fmt-check {s}: {d} file(s) would change\n", .{ package.name, changed });
                 std.process.exit(1);
             }
         },
@@ -275,6 +288,33 @@ fn auditPackage(allocator: std.mem.Allocator, package: PackageManifest) !Counts 
     }
 
     return total;
+}
+
+fn formatCheckPackage(allocator: std.mem.Allocator, package: PackageManifest) !usize {
+    var changed: usize = 0;
+
+    for (packageFormatSources(package)) |path| {
+        const source = try std.fs.cwd().readFileAlloc(allocator, path, 16 * 1024 * 1024);
+        defer allocator.free(source);
+
+        if (try formatCheckSource(allocator, source)) {
+            changed += 1;
+            std.debug.print("zpp-package: would change {s}\n", .{path});
+        }
+    }
+
+    return changed;
+}
+
+fn packageFormatSources(package: PackageManifest) []const []const u8 {
+    if (package.format_sources.len != 0) return package.format_sources;
+    return package.sources;
+}
+
+fn formatCheckSource(allocator: std.mem.Allocator, source: []const u8) !bool {
+    const formatted = try zpp_fmt.formatSource(allocator, source);
+    defer allocator.free(formatted);
+    return !std.mem.eql(u8, source, formatted);
 }
 
 fn generatePackageApi(allocator: std.mem.Allocator, package: PackageManifest) ![]u8 {
@@ -464,6 +504,7 @@ test "package manifest parses source list" {
         \\  "name": "sample",
         \\  "version": "0.1.0",
         \\  "sources": ["one.zpp", "two.zpp"],
+        \\  "format_sources": ["one.zpp", "tests/one.zpp"],
         \\  "api_output": "docs/sample.api.jsonl",
         \\  "api_baseline": "docs/sample.api.jsonl",
         \\  "docs_output": "docs/sample-api.md"
@@ -478,6 +519,8 @@ test "package manifest parses source list" {
     try std.testing.expectEqualStrings("sample", parsed.value.name);
     try std.testing.expectEqualStrings("0.1.0", parsed.value.version);
     try std.testing.expectEqual(@as(usize, 2), parsed.value.sources.len);
+    try std.testing.expectEqual(@as(usize, 2), parsed.value.format_sources.len);
+    try std.testing.expectEqualStrings("tests/one.zpp", parsed.value.format_sources[1]);
     try std.testing.expectEqualStrings("docs/sample.api.jsonl", parsed.value.api_output);
     try std.testing.expectEqualStrings("docs/sample.api.jsonl", parsed.value.api_baseline);
     try std.testing.expectEqualStrings("docs/sample-api.md", parsed.value.docs_output);
@@ -534,6 +577,26 @@ test "package defaults resolve output and baseline paths" {
     try std.testing.expectEqualStrings("baseline.jsonl", resolveBaselinePath("baseline.jsonl", package).?);
     try std.testing.expectEqualStrings("docs/sample-api.md", resolveDocBaselinePath(null, package).?);
     try std.testing.expectEqualStrings("baseline.md", resolveDocBaselinePath("baseline.md", package).?);
+}
+
+test "package format sources default to package sources" {
+    const sources = [_][]const u8{ "one.zpp", "two.zpp" };
+    const explicit = [_][]const u8{"fmt.zpp"};
+
+    try std.testing.expectEqualSlices([]const u8, &sources, packageFormatSources(.{
+        .name = "sample",
+        .sources = &sources,
+    }));
+    try std.testing.expectEqualSlices([]const u8, &explicit, packageFormatSources(.{
+        .name = "sample",
+        .sources = &sources,
+        .format_sources = &explicit,
+    }));
+}
+
+test "format check source reports formatter drift" {
+    try std.testing.expect(!try formatCheckSource(std.testing.allocator, "trait Writer {\n}\n"));
+    try std.testing.expect(try formatCheckSource(std.testing.allocator, "trait Writer {  \n}\n"));
 }
 
 test "compatible manifest helper catches missing line" {
