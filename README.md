@@ -166,7 +166,19 @@ tests/
 The original design draft is kept in
 [docs/zigpp-design-draft-v0.1.md](docs/zigpp-design-draft-v0.1.md).
 
+## Contributing
+
+This project is intentionally experimental. Contributions should keep the
+central rule intact: generated Zig must stay readable, and high-level features
+must not hide allocation, cleanup, dispatch, unsafe operations, or control flow.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the local checks and design rules.
+
 ## Status
 
 This repository is a prototype and design experiment. Syntax, diagnostics,
 lowering rules, and tool behavior are all expected to change.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
