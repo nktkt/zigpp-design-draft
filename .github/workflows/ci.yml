@@ -20,17 +20,5 @@ jobs:
         with:
           version: 0.15.2
 
-      - name: Run tests
-        run: zig build test
-
-      - name: Run fixture tests
-        run: zig build fixture-test
-
-      - name: Compile generated fixtures
-        run: zig build compile-fixtures
-
-      - name: Audit package manifest
-        run: zig build package-zpp -- zpp-package.json --audit
-
-      - name: Check API baseline
-        run: zig build package-zpp -- zpp-package.json --api-check
+      - name: Run CI checks
+        run: zig build ci

@@ -83,8 +83,9 @@ The build installs these tools:
 The local toolchain used for this scaffold is Zig 0.15.2.
 
 ```sh
-zig build test
 zig build
+zig build test
+zig build ci
 zig build run -- examples/hello_trait.zpp -o /tmp/hello_trait.zig
 ```
 

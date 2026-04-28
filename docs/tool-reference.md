@@ -316,9 +316,5 @@ zig build package-zpp -- zpp-package.json --api-check
 Checking repository CI locally:
 
 ```sh
-zig build test
-zig build fixture-test
-zig build compile-fixtures
-zig build package-zpp -- zpp-package.json --audit
-zig build package-zpp -- zpp-package.json --api-check
+zig build ci
 ```

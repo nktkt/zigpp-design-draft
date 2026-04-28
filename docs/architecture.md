@@ -120,6 +120,7 @@ Common steps:
 ```sh
 zig build
 zig build test
+zig build ci
 zig build run -- examples/hello_trait.zpp -o /tmp/hello_trait.zig
 zig build fixture-test
 zig build compile-fixtures
@@ -140,6 +141,9 @@ zig build package-zpp -- zpp-package.json --audit
 - unit tests for each tool with tests
 - fixture lowering tests
 - generated Zig compile fixture checks
+
+`zig build ci` runs `zig build test` plus package audit and API baseline
+checks. It is the local equivalent of the GitHub Actions workflow.
 
 ## Fixtures and Examples
 

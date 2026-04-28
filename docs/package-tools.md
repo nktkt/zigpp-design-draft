@@ -183,11 +183,7 @@ The repository checks in generated example docs at
 The current GitHub Actions workflow runs:
 
 ```sh
-zig build test
-zig build fixture-test
-zig build compile-fixtures
-zig build package-zpp -- zpp-package.json --audit
-zig build package-zpp -- zpp-package.json --api-check
+zig build ci
 ```
 
 This policy keeps four surfaces under review:
@@ -196,6 +192,10 @@ This policy keeps four surfaces under review:
 - `.zpp` lowering fixtures
 - generated Zig compile checks
 - package diagnostics and API baseline drift
+
+The `ci` build step expands to `zig build test`, package audit, and package API
+baseline checks. `zig build test` already includes fixture and compile-fixture
+checks.
 
 When changing public examples or API extraction, regenerate the checked-in
 package outputs and commit them with the source change:
