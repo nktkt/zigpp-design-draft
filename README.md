@@ -171,6 +171,8 @@ Current diagnostics are documented in
 [docs/diagnostics.md](docs/diagnostics.md).
 Package, docs, and API manifest tooling are documented in
 [docs/package-tools.md](docs/package-tools.md).
+The codebase architecture is documented in
+[docs/architecture.md](docs/architecture.md).
 
 ## Roadmap
 
