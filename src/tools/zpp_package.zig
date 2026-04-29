@@ -380,13 +380,14 @@ fn packageCheckFails(result: PackageCheckResult, deny_warnings: bool) bool {
 const ValidationResult = struct {
     empty_lists: usize = 0,
     absolute_paths: usize = 0,
+    parent_paths: usize = 0,
     missing_paths: usize = 0,
     duplicate_entries: usize = 0,
     invalid_extensions: usize = 0,
     invalid_outputs: usize = 0,
 
     fn errors(self: ValidationResult) usize {
-        return self.empty_lists + self.absolute_paths + self.missing_paths + self.duplicate_entries + self.invalid_extensions + self.invalid_outputs;
+        return self.empty_lists + self.absolute_paths + self.parent_paths + self.missing_paths + self.duplicate_entries + self.invalid_extensions + self.invalid_outputs;
     }
 };
 
@@ -410,15 +411,20 @@ fn validateRequiredPathList(label: []const u8, paths: []const []const u8, expect
     }
 
     for (paths) |path| {
+        const unsafe_path = pathIsUnsafeForAccess(path);
         if (pathIsAbsolute(path)) {
             result.absolute_paths += 1;
             std.debug.print("zpp-package: {s} must be repo-relative: {s}\n", .{ label, path });
+        }
+        if (pathHasParentTraversal(path)) {
+            result.parent_paths += 1;
+            std.debug.print("zpp-package: {s} must not contain '..': {s}\n", .{ label, path });
         }
         if (!pathHasExtension(path, expected_ext)) {
             result.invalid_extensions += 1;
             std.debug.print("zpp-package: {s} invalid extension: {s} (expected {s})\n", .{ label, path, expected_ext });
         }
-        if (!pathExists(path)) {
+        if (!unsafe_path and !pathExists(path)) {
             result.missing_paths += 1;
             std.debug.print("zpp-package: {s} missing file: {s}\n", .{ label, path });
         }
@@ -439,6 +445,10 @@ fn validateOutputPath(label: []const u8, path: []const u8, expected_ext: []const
         result.absolute_paths += 1;
         std.debug.print("zpp-package: {s} must be repo-relative: {s}\n", .{ label, path });
     }
+    if (pathHasParentTraversal(path)) {
+        result.parent_paths += 1;
+        std.debug.print("zpp-package: {s} must not contain '..': {s}\n", .{ label, path });
+    }
     if (pathHasExtension(path, expected_ext)) return;
 
     result.invalid_outputs += 1;
@@ -447,6 +457,18 @@ fn validateOutputPath(label: []const u8, path: []const u8, expected_ext: []const
 
 fn pathIsAbsolute(path: []const u8) bool {
     return std.fs.path.isAbsolutePosix(path) or std.fs.path.isAbsoluteWindows(path);
+}
+
+fn pathHasParentTraversal(path: []const u8) bool {
+    var segments = std.mem.tokenizeAny(u8, path, "/\\");
+    while (segments.next()) |segment| {
+        if (std.mem.eql(u8, segment, "..")) return true;
+    }
+    return false;
+}
+
+fn pathIsUnsafeForAccess(path: []const u8) bool {
+    return pathIsAbsolute(path) or pathHasParentTraversal(path);
 }
 
 fn pathExists(path: []const u8) bool {
@@ -489,6 +511,14 @@ fn countAbsolutePaths(paths: []const []const u8) usize {
     return absolute;
 }
 
+fn countParentTraversalPaths(paths: []const []const u8) usize {
+    var parent_paths: usize = 0;
+    for (paths) |path| {
+        if (pathHasParentTraversal(path)) parent_paths += 1;
+    }
+    return parent_paths;
+}
+
 fn countDuplicateEntries(paths: []const []const u8) usize {
     var duplicates: usize = 0;
     var i: usize = 0;
@@ -503,10 +533,11 @@ fn validationFails(result: ValidationResult) bool {
 }
 
 fn printValidationSummary(package_name: []const u8, result: ValidationResult) void {
-    std.debug.print("zpp-package validate {s}: {d} empty list(s), {d} absolute path(s), {d} missing path(s), {d} duplicate entry(s), {d} invalid extension(s), {d} invalid output(s)\n", .{
+    std.debug.print("zpp-package validate {s}: {d} empty list(s), {d} absolute path(s), {d} parent path(s), {d} missing path(s), {d} duplicate entry(s), {d} invalid extension(s), {d} invalid output(s)\n", .{
         package_name,
         result.empty_lists,
         result.absolute_paths,
+        result.parent_paths,
         result.missing_paths,
         result.duplicate_entries,
         result.invalid_extensions,
@@ -943,10 +974,21 @@ test "manifest path helper catches posix and windows absolute paths" {
     try std.testing.expectEqual(@as(usize, 2), countAbsolutePaths(&paths));
 }
 
+test "manifest path helper catches parent traversal segments" {
+    const paths = [_][]const u8{ "examples/one.zpp", "../one.zpp", "examples/../one.zpp", "examples\\..\\one.zpp", "examples/two..zpp" };
+    try std.testing.expect(!pathHasParentTraversal("examples/one.zpp"));
+    try std.testing.expect(!pathHasParentTraversal("examples/two..zpp"));
+    try std.testing.expect(pathHasParentTraversal("../one.zpp"));
+    try std.testing.expect(pathHasParentTraversal("examples/../one.zpp"));
+    try std.testing.expect(pathHasParentTraversal("examples\\..\\one.zpp"));
+    try std.testing.expectEqual(@as(usize, 3), countParentTraversalPaths(&paths));
+}
+
 test "validation failure policy follows validation errors" {
     try std.testing.expect(!validationFails(.{}));
     try std.testing.expect(validationFails(.{ .empty_lists = 1 }));
     try std.testing.expect(validationFails(.{ .absolute_paths = 1 }));
+    try std.testing.expect(validationFails(.{ .parent_paths = 1 }));
     try std.testing.expect(validationFails(.{ .missing_paths = 1 }));
     try std.testing.expect(validationFails(.{ .duplicate_entries = 1 }));
     try std.testing.expect(validationFails(.{ .invalid_extensions = 1 }));
