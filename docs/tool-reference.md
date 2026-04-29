@@ -126,7 +126,7 @@ Failure policy:
 Usage:
 
 ```text
-zpp-package <package.json> (--audit | --fmt | --fmt-check | --refresh | --api [-o output.jsonl] | --doc [-o output.md] | --doc-check [baseline.md] | --api-check [baseline.jsonl] | --api-check-compatible [baseline.jsonl]) [--deny-warnings]
+zpp-package <package.json> (--audit | --fmt | --fmt-check | --refresh | --check | --api [-o output.jsonl] | --doc [-o output.md] | --doc-check [baseline.md] | --api-check [baseline.jsonl] | --api-check-compatible [baseline.jsonl]) [--deny-warnings]
 ```
 
 Purpose:
@@ -136,6 +136,7 @@ Purpose:
 - formats package format sources
 - checks package format sources
 - refreshes generated package artifacts
+- runs the package CI checks
 - generates package API manifests and docs
 - checks generated package docs against a baseline
 - checks package API baselines
@@ -147,6 +148,7 @@ zig build package-zpp -- zpp-package.json --audit
 zig build package-zpp -- zpp-package.json --fmt
 zig build package-zpp -- zpp-package.json --fmt-check
 zig build package-zpp -- zpp-package.json --refresh
+zig build package-zpp -- zpp-package.json --check
 zig build package-zpp -- zpp-package.json --api
 zig build package-zpp -- zpp-package.json --doc
 zig build package-zpp -- zpp-package.json --doc-check
@@ -162,6 +164,7 @@ Failure policy:
 - `--fmt` writes formatted output for changed `format_sources`
 - format checks fail when any `format_sources` entry would change
 - `--refresh` writes formatted sources plus configured API and docs outputs
+- `--check` fails on formatter drift, audit failures, API drift, or docs drift
 - API checks fail when their manifest policy is violated
 - `--doc-check` fails when generated Markdown differs from the baseline
 - exact API and docs drift failures print the first differing line as
@@ -335,7 +338,7 @@ Changing public examples, formatting, or API extraction:
 zig build package-zpp -- zpp-package.json --fmt
 zig build package-zpp -- zpp-package.json --fmt-check
 zig build package-zpp -- zpp-package.json --refresh
-zig build package-zpp -- zpp-package.json --api-check
+zig build package-zpp -- zpp-package.json --check
 ```
 
 Checking repository CI locally:

@@ -14,8 +14,8 @@ The prototype has three related tools:
 - `zpp-api`: generates and checks JSON Lines API manifests for one or more
   `.zpp` source files
 - `zpp-package`: reads a package manifest and runs audit, docs, API generation,
-  formatting, refreshes, format checks, docs drift checks, or API compatibility
-  checks across the package source lists
+  formatting, refreshes, package CI checks, format checks, docs drift checks,
+  or API compatibility checks across the package source lists
 
 Use `zpp-package` for repository CI. Use `zpp-doc` and `zpp-api` directly when
 iterating on one file or debugging manifest output.
@@ -107,6 +107,16 @@ zig build package-zpp -- zpp-package.json --refresh
 `--refresh` runs package formatting first, then rewrites the configured
 `api_output` and `docs_output` files when those manifest fields are present.
 It is the contributor shortcut for preparing generated diffs before running CI.
+
+Run all package-level CI checks:
+
+```sh
+zig build package-zpp -- zpp-package.json --check
+```
+
+`--check` combines `--fmt-check`, `--audit`, `--api-check`, and `--doc-check`
+for the manifest defaults. `--deny-warnings` makes audit warnings fail inside
+this combined check.
 
 Require generated package docs to match the manifest's `docs_output`:
 
@@ -240,9 +250,8 @@ This policy keeps six surfaces under review:
 - package diagnostics
 - API baseline drift and docs baseline drift
 
-The `ci` build step expands to `zig build test`, formatter checks, package
-audit, package API baseline checks, and package docs baseline checks. `zig build
-test` already includes fixture and compile-fixture checks.
+The `ci` build step expands to `zig build test` plus `zpp-package --check`.
+`zig build test` already includes fixture and compile-fixture checks.
 
 When changing public examples or API extraction, regenerate the checked-in
 package outputs and commit them with the source change:

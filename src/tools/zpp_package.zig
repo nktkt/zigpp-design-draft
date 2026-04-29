@@ -5,7 +5,7 @@ const zpp_doc = @import("zpp_doc.zig");
 const zpp_fmt = @import("zpp_fmt.zig");
 
 const usage =
-    \\usage: zpp-package <package.json> (--audit | --fmt | --fmt-check | --refresh | --api [-o output.jsonl] | --doc [-o output.md] | --doc-check [baseline.md] | --api-check [baseline.jsonl] | --api-check-compatible [baseline.jsonl]) [--deny-warnings]
+    \\usage: zpp-package <package.json> (--audit | --fmt | --fmt-check | --refresh | --check | --api [-o output.jsonl] | --doc [-o output.md] | --doc-check [baseline.md] | --api-check [baseline.jsonl] | --api-check-compatible [baseline.jsonl]) [--deny-warnings]
     \\
     \\Package manifest format:
     \\{
@@ -36,6 +36,7 @@ const Command = enum {
     fmt,
     fmt_check,
     refresh,
+    check,
     api,
     doc,
     doc_check,
@@ -96,6 +97,8 @@ pub fn main() !void {
             try setCommand(&command, .fmt_check);
         } else if (std.mem.eql(u8, arg, "--refresh")) {
             try setCommand(&command, .refresh);
+        } else if (std.mem.eql(u8, arg, "--check")) {
+            try setCommand(&command, .check);
         } else if (std.mem.eql(u8, arg, "--api")) {
             try setCommand(&command, .api);
         } else if (std.mem.eql(u8, arg, "--doc")) {
@@ -175,6 +178,21 @@ pub fn main() !void {
                 enabledLabel(result.wrote_docs),
             });
         },
+        .check => {
+            const result = try checkPackage(allocator, package);
+            std.debug.print("zpp-package check {s}: fmt={d}, {d} error(s), {d} warning(s), {d} note(s), api={s}, docs={s}\n", .{
+                package.name,
+                result.format_changes,
+                result.diagnostics.errors,
+                result.diagnostics.warnings,
+                result.diagnostics.notes,
+                passLabel(result.api_ok),
+                passLabel(result.docs_ok),
+            });
+            if (packageCheckFails(result, deny_warnings)) {
+                std.process.exit(1);
+            }
+        },
         .api => {
             const manifest = try generatePackageApi(allocator, package);
             defer allocator.free(manifest);
@@ -194,26 +212,12 @@ pub fn main() !void {
             }
         },
         .doc_check => {
-            const baseline = try readDocBaseline(allocator, baseline_path, package);
-            defer allocator.free(baseline);
-            const markdown = try generatePackageDocs(allocator, package);
-            defer allocator.free(markdown);
-
-            if (!manifestsEqual(baseline, markdown)) {
-                std.debug.print("zpp-package: docs output differs from {s}\n", .{resolveDocBaselinePath(baseline_path, package) orelse ""});
-                printFirstDifference(baseline, markdown);
+            if (!try checkPackageDocs(allocator, baseline_path, package)) {
                 std.process.exit(1);
             }
         },
         .api_check => {
-            const baseline = try readBaseline(allocator, baseline_path, package);
-            defer allocator.free(baseline);
-            const manifest = try generatePackageApi(allocator, package);
-            defer allocator.free(manifest);
-
-            if (!manifestsEqual(baseline, manifest)) {
-                std.debug.print("zpp-package: API manifest differs from {s}\n", .{resolveBaselinePath(baseline_path, package) orelse ""});
-                printFirstDifference(baseline, manifest);
+            if (!try checkPackageApi(allocator, baseline_path, package)) {
                 std.process.exit(1);
             }
         },
@@ -320,6 +324,29 @@ const RefreshResult = struct {
     wrote_docs: bool,
 };
 
+const PackageCheckResult = struct {
+    format_changes: usize,
+    diagnostics: Counts,
+    api_ok: bool,
+    docs_ok: bool,
+};
+
+fn checkPackage(allocator: std.mem.Allocator, package: PackageManifest) !PackageCheckResult {
+    return .{
+        .format_changes = try formatPackage(allocator, package, .check),
+        .diagnostics = try auditPackage(allocator, package),
+        .api_ok = try checkPackageApi(allocator, null, package),
+        .docs_ok = try checkPackageDocs(allocator, null, package),
+    };
+}
+
+fn packageCheckFails(result: PackageCheckResult, deny_warnings: bool) bool {
+    return result.format_changes != 0 or
+        auditFails(result.diagnostics, deny_warnings) or
+        !result.api_ok or
+        !result.docs_ok;
+}
+
 fn refreshPackage(allocator: std.mem.Allocator, package: PackageManifest) !RefreshResult {
     return .{
         .formatted = try formatPackage(allocator, package, .write),
@@ -350,6 +377,10 @@ fn writeConfiguredPackageDocs(allocator: std.mem.Allocator, package: PackageMani
 
 fn enabledLabel(enabled: bool) []const u8 {
     return if (enabled) "yes" else "no";
+}
+
+fn passLabel(passed: bool) []const u8 {
+    return if (passed) "ok" else "fail";
 }
 
 fn formatPackage(allocator: std.mem.Allocator, package: PackageManifest, mode: FormatMode) !usize {
@@ -443,6 +474,32 @@ fn generatePackageDocs(allocator: std.mem.Allocator, package: PackageManifest) !
     }
 
     return generatePackageDocsFromSources(allocator, package.name, package.version, sources.items);
+}
+
+fn checkPackageApi(allocator: std.mem.Allocator, baseline_path: ?[]const u8, package: PackageManifest) !bool {
+    const baseline = try readBaseline(allocator, baseline_path, package);
+    defer allocator.free(baseline);
+    const manifest = try generatePackageApi(allocator, package);
+    defer allocator.free(manifest);
+
+    if (manifestsEqual(baseline, manifest)) return true;
+
+    std.debug.print("zpp-package: API manifest differs from {s}\n", .{resolveBaselinePath(baseline_path, package) orelse ""});
+    printFirstDifference(baseline, manifest);
+    return false;
+}
+
+fn checkPackageDocs(allocator: std.mem.Allocator, baseline_path: ?[]const u8, package: PackageManifest) !bool {
+    const baseline = try readDocBaseline(allocator, baseline_path, package);
+    defer allocator.free(baseline);
+    const markdown = try generatePackageDocs(allocator, package);
+    defer allocator.free(markdown);
+
+    if (manifestsEqual(baseline, markdown)) return true;
+
+    std.debug.print("zpp-package: docs output differs from {s}\n", .{resolveDocBaselinePath(baseline_path, package) orelse ""});
+    printFirstDifference(baseline, markdown);
+    return false;
 }
 
 pub fn generatePackageDocsFromSources(
@@ -647,6 +704,39 @@ test "audit failure policy matches package command" {
     try std.testing.expect(auditFails(.{ .errors = 1 }, false));
 }
 
+test "package check failure policy combines all package checks" {
+    try std.testing.expect(!packageCheckFails(.{
+        .format_changes = 0,
+        .diagnostics = .{},
+        .api_ok = true,
+        .docs_ok = true,
+    }, false));
+    try std.testing.expect(packageCheckFails(.{
+        .format_changes = 1,
+        .diagnostics = .{},
+        .api_ok = true,
+        .docs_ok = true,
+    }, false));
+    try std.testing.expect(packageCheckFails(.{
+        .format_changes = 0,
+        .diagnostics = .{ .warnings = 1 },
+        .api_ok = true,
+        .docs_ok = true,
+    }, true));
+    try std.testing.expect(packageCheckFails(.{
+        .format_changes = 0,
+        .diagnostics = .{},
+        .api_ok = false,
+        .docs_ok = true,
+    }, false));
+    try std.testing.expect(packageCheckFails(.{
+        .format_changes = 0,
+        .diagnostics = .{},
+        .api_ok = true,
+        .docs_ok = false,
+    }, false));
+}
+
 test "package defaults resolve output and baseline paths" {
     const package = PackageManifest{
         .name = "sample",
@@ -688,6 +778,11 @@ test "format check source reports formatter drift" {
 test "enabled label is stable for command summaries" {
     try std.testing.expectEqualStrings("yes", enabledLabel(true));
     try std.testing.expectEqualStrings("no", enabledLabel(false));
+}
+
+test "pass label is stable for command summaries" {
+    try std.testing.expectEqualStrings("ok", passLabel(true));
+    try std.testing.expectEqualStrings("fail", passLabel(false));
 }
 
 test "package format source counting follows formatter drift" {

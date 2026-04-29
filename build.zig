@@ -286,22 +286,10 @@ pub fn build(b: *std.Build) void {
     const compile_fixture_step = b.step("compile-fixtures", "Compile generated Zig fixture output");
     compile_fixture_step.dependOn(&run_compile_fixtures.step);
 
-    const run_ci_package_audit = b.addRunArtifact(package_exe);
-    run_ci_package_audit.addArgs(&.{ "zpp-package.json", "--audit" });
-
-    const run_ci_fmt_check = b.addRunArtifact(package_exe);
-    run_ci_fmt_check.addArgs(&.{ "zpp-package.json", "--fmt-check" });
-
-    const run_ci_api_check = b.addRunArtifact(package_exe);
-    run_ci_api_check.addArgs(&.{ "zpp-package.json", "--api-check" });
-
-    const run_ci_doc_check = b.addRunArtifact(package_exe);
-    run_ci_doc_check.addArgs(&.{ "zpp-package.json", "--doc-check" });
+    const run_ci_package_check = b.addRunArtifact(package_exe);
+    run_ci_package_check.addArgs(&.{ "zpp-package.json", "--check" });
 
     const ci_step = b.step("ci", "Run the same checks as GitHub Actions");
     ci_step.dependOn(test_step);
-    ci_step.dependOn(&run_ci_fmt_check.step);
-    ci_step.dependOn(&run_ci_package_audit.step);
-    ci_step.dependOn(&run_ci_api_check.step);
-    ci_step.dependOn(&run_ci_doc_check.step);
+    ci_step.dependOn(&run_ci_package_check.step);
 }

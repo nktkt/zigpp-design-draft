@@ -136,6 +136,7 @@ zig build package-zpp -- zpp-package.json --audit
 zig build package-zpp -- zpp-package.json --fmt
 zig build package-zpp -- zpp-package.json --fmt-check
 zig build package-zpp -- zpp-package.json --refresh
+zig build package-zpp -- zpp-package.json --check
 ```
 
 `zig build test` runs:
@@ -145,9 +146,8 @@ zig build package-zpp -- zpp-package.json --refresh
 - fixture lowering tests
 - generated Zig compile fixture checks
 
-`zig build ci` runs `zig build test` plus manifest-driven `.zpp` formatter
-checks, package audit, API baseline checks, and docs baseline checks. It is the
-local equivalent of the GitHub Actions workflow.
+`zig build ci` runs `zig build test` plus `zpp-package --check`. It is the local
+equivalent of the GitHub Actions workflow.
 
 ## Fixtures and Examples
 
@@ -182,10 +182,11 @@ zig build package-zpp -- zpp-package.json --refresh
 CI checks the API baseline with:
 
 ```sh
-zig build package-zpp -- zpp-package.json --api-check
+zig build package-zpp -- zpp-package.json --check
 ```
 
-This makes public API extraction drift visible in pull requests.
+This makes formatter drift, diagnostics, public API extraction drift, and docs
+drift visible in pull requests.
 
 ## Design Boundaries
 
