@@ -384,11 +384,12 @@ const ValidationResult = struct {
     parent_paths: usize = 0,
     missing_paths: usize = 0,
     duplicate_entries: usize = 0,
+    unformatted_sources: usize = 0,
     invalid_extensions: usize = 0,
     invalid_outputs: usize = 0,
 
     fn errors(self: ValidationResult) usize {
-        return self.empty_lists + self.empty_paths + self.absolute_paths + self.parent_paths + self.missing_paths + self.duplicate_entries + self.invalid_extensions + self.invalid_outputs;
+        return self.empty_lists + self.empty_paths + self.absolute_paths + self.parent_paths + self.missing_paths + self.duplicate_entries + self.unformatted_sources + self.invalid_extensions + self.invalid_outputs;
     }
 };
 
@@ -397,6 +398,7 @@ fn validatePackage(package: PackageManifest) ValidationResult {
     validateRequiredPathList("sources", package.sources, ".zpp", &result);
     if (package.format_sources.len != 0) {
         validateRequiredPathList("format_sources", package.format_sources, ".zpp", &result);
+        validateFormatCoverage(package.sources, package.format_sources, &result);
     }
     validateOutputPath("api_output", package.api_output, ".jsonl", &result);
     validateOutputPath("api_baseline", package.api_baseline, ".jsonl", &result);
@@ -444,6 +446,16 @@ fn validateRequiredPathList(label: []const u8, paths: []const []const u8, expect
             result.duplicate_entries += 1;
             std.debug.print("zpp-package: {s} duplicate entry: {s}\n", .{ label, paths[i] });
         }
+    }
+}
+
+fn validateFormatCoverage(sources: []const []const u8, format_sources: []const []const u8, result: *ValidationResult) void {
+    for (sources) |source| {
+        if (source.len == 0) continue;
+        if (firstIndexOfPath(format_sources, source) != null) continue;
+
+        result.unformatted_sources += 1;
+        std.debug.print("zpp-package: format_sources missing source: {s}\n", .{source});
     }
 }
 
@@ -544,12 +556,21 @@ fn countDuplicateEntries(paths: []const []const u8) usize {
     return duplicates;
 }
 
+fn countMissingFormatSources(sources: []const []const u8, format_sources: []const []const u8) usize {
+    var missing: usize = 0;
+    for (sources) |source| {
+        if (source.len == 0) continue;
+        if (firstIndexOfPath(format_sources, source) == null) missing += 1;
+    }
+    return missing;
+}
+
 fn validationFails(result: ValidationResult) bool {
     return result.errors() != 0;
 }
 
 fn printValidationSummary(package_name: []const u8, result: ValidationResult) void {
-    std.debug.print("zpp-package validate {s}: {d} empty list(s), {d} empty path(s), {d} absolute path(s), {d} parent path(s), {d} missing path(s), {d} duplicate entry(s), {d} invalid extension(s), {d} invalid output(s)\n", .{
+    std.debug.print("zpp-package validate {s}: {d} empty list(s), {d} empty path(s), {d} absolute path(s), {d} parent path(s), {d} missing path(s), {d} duplicate entry(s), {d} unformatted source(s), {d} invalid extension(s), {d} invalid output(s)\n", .{
         package_name,
         result.empty_lists,
         result.empty_paths,
@@ -557,6 +578,7 @@ fn printValidationSummary(package_name: []const u8, result: ValidationResult) vo
         result.parent_paths,
         result.missing_paths,
         result.duplicate_entries,
+        result.unformatted_sources,
         result.invalid_extensions,
         result.invalid_outputs,
     });
@@ -1006,6 +1028,12 @@ test "manifest path helper counts empty path entries" {
     try std.testing.expectEqual(@as(usize, 2), countEmptyPaths(&paths));
 }
 
+test "manifest format coverage helper catches omitted sources" {
+    const sources = [_][]const u8{ "examples/one.zpp", "examples/two.zpp", "" };
+    const format_sources = [_][]const u8{ "examples/one.zpp", "tests/diag.zpp" };
+    try std.testing.expectEqual(@as(usize, 1), countMissingFormatSources(&sources, &format_sources));
+}
+
 test "validation failure policy follows validation errors" {
     try std.testing.expect(!validationFails(.{}));
     try std.testing.expect(validationFails(.{ .empty_lists = 1 }));
@@ -1014,6 +1042,7 @@ test "validation failure policy follows validation errors" {
     try std.testing.expect(validationFails(.{ .parent_paths = 1 }));
     try std.testing.expect(validationFails(.{ .missing_paths = 1 }));
     try std.testing.expect(validationFails(.{ .duplicate_entries = 1 }));
+    try std.testing.expect(validationFails(.{ .unformatted_sources = 1 }));
     try std.testing.expect(validationFails(.{ .invalid_extensions = 1 }));
     try std.testing.expect(validationFails(.{ .invalid_outputs = 1 }));
 }
