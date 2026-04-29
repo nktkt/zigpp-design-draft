@@ -74,9 +74,11 @@ Validate manifest source paths:
 zig build package-zpp -- zpp-package.json --validate
 ```
 
-Validation checks that `sources` is not empty and that entries in `sources` and
+Validation checks that `sources` is not empty, that entries in `sources` and
 explicit `format_sources` exist, use the `.zpp` extension, and are not
-duplicated within their own list.
+duplicated within their own list. It also checks configured generated artifact
+paths: API outputs and baselines must use `.jsonl`, while docs output must use
+`.md`.
 
 Audit all package sources:
 

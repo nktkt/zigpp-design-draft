@@ -162,7 +162,8 @@ Failure policy:
 
 - choose exactly one package command
 - validation fails on empty source lists, missing source files, duplicate source
-  entries, or non-`.zpp` source paths
+  entries, non-`.zpp` source paths, or generated artifact paths with the wrong
+  extension
 - audit errors fail
 - audit warnings fail only with `--deny-warnings` or `-Werror`
 - `--fmt` writes formatted output for changed `format_sources`

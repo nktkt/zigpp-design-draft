@@ -382,9 +382,10 @@ const ValidationResult = struct {
     missing_paths: usize = 0,
     duplicate_entries: usize = 0,
     invalid_extensions: usize = 0,
+    invalid_outputs: usize = 0,
 
     fn errors(self: ValidationResult) usize {
-        return self.empty_lists + self.missing_paths + self.duplicate_entries + self.invalid_extensions;
+        return self.empty_lists + self.missing_paths + self.duplicate_entries + self.invalid_extensions + self.invalid_outputs;
     }
 };
 
@@ -394,6 +395,9 @@ fn validatePackage(package: PackageManifest) ValidationResult {
     if (package.format_sources.len != 0) {
         validateRequiredPathList("format_sources", package.format_sources, ".zpp", &result);
     }
+    validateOutputPath("api_output", package.api_output, ".jsonl", &result);
+    validateOutputPath("api_baseline", package.api_baseline, ".jsonl", &result);
+    validateOutputPath("docs_output", package.docs_output, ".md", &result);
     return result;
 }
 
@@ -424,6 +428,14 @@ fn validateRequiredPathList(label: []const u8, paths: []const []const u8, expect
     }
 }
 
+fn validateOutputPath(label: []const u8, path: []const u8, expected_ext: []const u8, result: *ValidationResult) void {
+    if (path.len == 0) return;
+    if (pathHasExtension(path, expected_ext)) return;
+
+    result.invalid_outputs += 1;
+    std.debug.print("zpp-package: {s} invalid output path: {s} (expected {s})\n", .{ label, path, expected_ext });
+}
+
 fn pathExists(path: []const u8) bool {
     std.fs.cwd().access(path, .{}) catch return false;
     return true;
@@ -448,6 +460,14 @@ fn countInvalidExtensions(paths: []const []const u8, expected_ext: []const u8) u
     return invalid;
 }
 
+fn countInvalidOutputExtensions(paths: []const []const u8, expected_ext: []const u8) usize {
+    var invalid: usize = 0;
+    for (paths) |path| {
+        if (path.len != 0 and !pathHasExtension(path, expected_ext)) invalid += 1;
+    }
+    return invalid;
+}
+
 fn countDuplicateEntries(paths: []const []const u8) usize {
     var duplicates: usize = 0;
     var i: usize = 0;
@@ -462,12 +482,13 @@ fn validationFails(result: ValidationResult) bool {
 }
 
 fn printValidationSummary(package_name: []const u8, result: ValidationResult) void {
-    std.debug.print("zpp-package validate {s}: {d} empty list(s), {d} missing path(s), {d} duplicate entry(s), {d} invalid extension(s)\n", .{
+    std.debug.print("zpp-package validate {s}: {d} empty list(s), {d} missing path(s), {d} duplicate entry(s), {d} invalid extension(s), {d} invalid output(s)\n", .{
         package_name,
         result.empty_lists,
         result.missing_paths,
         result.duplicate_entries,
         result.invalid_extensions,
+        result.invalid_outputs,
     });
 }
 
@@ -887,12 +908,18 @@ test "manifest extension helper catches non-zpp paths" {
     try std.testing.expectEqual(@as(usize, 2), countInvalidExtensions(&paths, ".zpp"));
 }
 
+test "manifest output extension helper ignores unset outputs" {
+    const paths = [_][]const u8{ "docs/api.jsonl", "", "docs/api.md" };
+    try std.testing.expectEqual(@as(usize, 1), countInvalidOutputExtensions(&paths, ".jsonl"));
+}
+
 test "validation failure policy follows validation errors" {
     try std.testing.expect(!validationFails(.{}));
     try std.testing.expect(validationFails(.{ .empty_lists = 1 }));
     try std.testing.expect(validationFails(.{ .missing_paths = 1 }));
     try std.testing.expect(validationFails(.{ .duplicate_entries = 1 }));
     try std.testing.expect(validationFails(.{ .invalid_extensions = 1 }));
+    try std.testing.expect(validationFails(.{ .invalid_outputs = 1 }));
 }
 
 test "package defaults resolve output and baseline paths" {
