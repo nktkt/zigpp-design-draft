@@ -379,6 +379,7 @@ fn packageCheckFails(result: PackageCheckResult, deny_warnings: bool) bool {
 
 const ValidationResult = struct {
     empty_lists: usize = 0,
+    empty_paths: usize = 0,
     absolute_paths: usize = 0,
     parent_paths: usize = 0,
     missing_paths: usize = 0,
@@ -387,7 +388,7 @@ const ValidationResult = struct {
     invalid_outputs: usize = 0,
 
     fn errors(self: ValidationResult) usize {
-        return self.empty_lists + self.absolute_paths + self.parent_paths + self.missing_paths + self.duplicate_entries + self.invalid_extensions + self.invalid_outputs;
+        return self.empty_lists + self.empty_paths + self.absolute_paths + self.parent_paths + self.missing_paths + self.duplicate_entries + self.invalid_extensions + self.invalid_outputs;
     }
 };
 
@@ -411,6 +412,12 @@ fn validateRequiredPathList(label: []const u8, paths: []const []const u8, expect
     }
 
     for (paths) |path| {
+        if (path.len == 0) {
+            result.empty_paths += 1;
+            std.debug.print("zpp-package: {s} contains an empty path entry\n", .{label});
+            continue;
+        }
+
         const unsafe_path = pathIsUnsafeForAccess(path);
         if (pathIsAbsolute(path)) {
             result.absolute_paths += 1;
@@ -432,6 +439,7 @@ fn validateRequiredPathList(label: []const u8, paths: []const []const u8, expect
 
     var i: usize = 0;
     while (i < paths.len) : (i += 1) {
+        if (paths[i].len == 0) continue;
         if (firstIndexOfPath(paths[0..i], paths[i]) != null) {
             result.duplicate_entries += 1;
             std.debug.print("zpp-package: {s} duplicate entry: {s}\n", .{ label, paths[i] });
@@ -519,6 +527,14 @@ fn countParentTraversalPaths(paths: []const []const u8) usize {
     return parent_paths;
 }
 
+fn countEmptyPaths(paths: []const []const u8) usize {
+    var empty: usize = 0;
+    for (paths) |path| {
+        if (path.len == 0) empty += 1;
+    }
+    return empty;
+}
+
 fn countDuplicateEntries(paths: []const []const u8) usize {
     var duplicates: usize = 0;
     var i: usize = 0;
@@ -533,9 +549,10 @@ fn validationFails(result: ValidationResult) bool {
 }
 
 fn printValidationSummary(package_name: []const u8, result: ValidationResult) void {
-    std.debug.print("zpp-package validate {s}: {d} empty list(s), {d} absolute path(s), {d} parent path(s), {d} missing path(s), {d} duplicate entry(s), {d} invalid extension(s), {d} invalid output(s)\n", .{
+    std.debug.print("zpp-package validate {s}: {d} empty list(s), {d} empty path(s), {d} absolute path(s), {d} parent path(s), {d} missing path(s), {d} duplicate entry(s), {d} invalid extension(s), {d} invalid output(s)\n", .{
         package_name,
         result.empty_lists,
+        result.empty_paths,
         result.absolute_paths,
         result.parent_paths,
         result.missing_paths,
@@ -984,9 +1001,15 @@ test "manifest path helper catches parent traversal segments" {
     try std.testing.expectEqual(@as(usize, 3), countParentTraversalPaths(&paths));
 }
 
+test "manifest path helper counts empty path entries" {
+    const paths = [_][]const u8{ "examples/one.zpp", "", "tests/two.zpp", "" };
+    try std.testing.expectEqual(@as(usize, 2), countEmptyPaths(&paths));
+}
+
 test "validation failure policy follows validation errors" {
     try std.testing.expect(!validationFails(.{}));
     try std.testing.expect(validationFails(.{ .empty_lists = 1 }));
+    try std.testing.expect(validationFails(.{ .empty_paths = 1 }));
     try std.testing.expect(validationFails(.{ .absolute_paths = 1 }));
     try std.testing.expect(validationFails(.{ .parent_paths = 1 }));
     try std.testing.expect(validationFails(.{ .missing_paths = 1 }));

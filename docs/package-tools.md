@@ -76,10 +76,10 @@ zig build package-zpp -- zpp-package.json --validate
 
 Validation checks that manifest paths are repo-relative and do not contain `..`
 segments, that `sources` is not empty, and that entries in `sources` and
-explicit `format_sources` exist, use the `.zpp` extension, and are not
-duplicated within their own list. It also checks configured generated artifact
-paths: API outputs and baselines must use `.jsonl`, while docs output must use
-`.md`.
+explicit `format_sources` are non-empty, exist, use the `.zpp` extension, and
+are not duplicated within their own list. It also checks configured generated
+artifact paths: API outputs and baselines must use `.jsonl`, while docs output
+must use `.md`.
 
 Audit all package sources:
 
