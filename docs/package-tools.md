@@ -14,8 +14,8 @@ The prototype has three related tools:
 - `zpp-api`: generates and checks JSON Lines API manifests for one or more
   `.zpp` source files
 - `zpp-package`: reads a package manifest and runs audit, docs, API generation,
-  format checks, docs drift checks, or API compatibility checks across the
-  package source lists
+  formatting, format checks, docs drift checks, or API compatibility checks
+  across the package source lists
 
 Use `zpp-package` for repository CI. Use `zpp-doc` and `zpp-api` directly when
 iterating on one file or debugging manifest output.
@@ -58,7 +58,7 @@ Fields:
 | `name` | yes | Package name used in command output |
 | `version` | no | Informational package version |
 | `sources` | yes | Ordered list of `.zpp` files to audit and document |
-| `format_sources` | no | Ordered list of `.zpp` files checked by `--fmt-check`; defaults to `sources` |
+| `format_sources` | no | Ordered list of `.zpp` files formatted by `--fmt` and checked by `--fmt-check`; defaults to `sources` |
 | `api_output` | no | Default output path for `--api` |
 | `api_baseline` | no | Default baseline path for API checks |
 | `docs_output` | no | Default output path for `--doc` and baseline path for `--doc-check` |
@@ -84,6 +84,12 @@ Generate package docs to the manifest's `docs_output`:
 
 ```sh
 zig build package-zpp -- zpp-package.json --doc
+```
+
+Format all package format sources in place:
+
+```sh
+zig build package-zpp -- zpp-package.json --fmt
 ```
 
 Require all package format sources to match `zpp-fmt` output:

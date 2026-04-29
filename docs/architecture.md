@@ -133,6 +133,7 @@ zig build audit-zpp -- examples/hello_trait.zpp
 zig build api-zpp -- examples/hello_trait.zpp
 zig build doc-zpp -- examples/hello_trait.zpp
 zig build package-zpp -- zpp-package.json --audit
+zig build package-zpp -- zpp-package.json --fmt
 zig build package-zpp -- zpp-package.json --fmt-check
 ```
 

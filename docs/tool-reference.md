@@ -126,13 +126,14 @@ Failure policy:
 Usage:
 
 ```text
-zpp-package <package.json> (--audit | --fmt-check | --api [-o output.jsonl] | --doc [-o output.md] | --doc-check [baseline.md] | --api-check [baseline.jsonl] | --api-check-compatible [baseline.jsonl]) [--deny-warnings]
+zpp-package <package.json> (--audit | --fmt | --fmt-check | --api [-o output.jsonl] | --doc [-o output.md] | --doc-check [baseline.md] | --api-check [baseline.jsonl] | --api-check-compatible [baseline.jsonl]) [--deny-warnings]
 ```
 
 Purpose:
 
 - reads a package manifest
 - audits all package sources
+- formats package format sources
 - checks package format sources
 - generates package API manifests and docs
 - checks generated package docs against a baseline
@@ -142,6 +143,7 @@ Examples:
 
 ```sh
 zig build package-zpp -- zpp-package.json --audit
+zig build package-zpp -- zpp-package.json --fmt
 zig build package-zpp -- zpp-package.json --fmt-check
 zig build package-zpp -- zpp-package.json --api
 zig build package-zpp -- zpp-package.json --doc
@@ -155,6 +157,7 @@ Failure policy:
 - choose exactly one package command
 - audit errors fail
 - audit warnings fail only with `--deny-warnings` or `-Werror`
+- `--fmt` writes formatted output for changed `format_sources`
 - format checks fail when any `format_sources` entry would change
 - API checks fail when their manifest policy is violated
 - `--doc-check` fails when generated Markdown differs from the baseline
@@ -326,6 +329,7 @@ zig build package-zpp -- zpp-package.json --audit
 Changing public examples, formatting, or API extraction:
 
 ```sh
+zig build package-zpp -- zpp-package.json --fmt
 zig build package-zpp -- zpp-package.json --fmt-check
 zig build package-zpp -- zpp-package.json --api
 zig build package-zpp -- zpp-package.json --doc

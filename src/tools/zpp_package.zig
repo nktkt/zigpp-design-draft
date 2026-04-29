@@ -5,7 +5,7 @@ const zpp_doc = @import("zpp_doc.zig");
 const zpp_fmt = @import("zpp_fmt.zig");
 
 const usage =
-    \\usage: zpp-package <package.json> (--audit | --fmt-check | --api [-o output.jsonl] | --doc [-o output.md] | --doc-check [baseline.md] | --api-check [baseline.jsonl] | --api-check-compatible [baseline.jsonl]) [--deny-warnings]
+    \\usage: zpp-package <package.json> (--audit | --fmt | --fmt-check | --api [-o output.jsonl] | --doc [-o output.md] | --doc-check [baseline.md] | --api-check [baseline.jsonl] | --api-check-compatible [baseline.jsonl]) [--deny-warnings]
     \\
     \\Package manifest format:
     \\{
@@ -33,6 +33,7 @@ const PackageManifest = struct {
 const Command = enum {
     none,
     audit,
+    fmt,
     fmt_check,
     api,
     doc,
@@ -88,6 +89,8 @@ pub fn main() !void {
             return;
         } else if (std.mem.eql(u8, arg, "--audit")) {
             try setCommand(&command, .audit);
+        } else if (std.mem.eql(u8, arg, "--fmt")) {
+            try setCommand(&command, .fmt);
         } else if (std.mem.eql(u8, arg, "--fmt-check")) {
             try setCommand(&command, .fmt_check);
         } else if (std.mem.eql(u8, arg, "--api")) {
@@ -149,8 +152,12 @@ pub fn main() !void {
                 std.process.exit(1);
             }
         },
+        .fmt => {
+            const changed = try formatPackage(allocator, package, .write);
+            std.debug.print("zpp-package fmt {s}: {d} file(s) formatted\n", .{ package.name, changed });
+        },
         .fmt_check => {
-            const changed = try formatCheckPackage(allocator, package);
+            const changed = try formatPackage(allocator, package, .check);
             if (changed != 0) {
                 std.debug.print("zpp-package fmt-check {s}: {d} file(s) would change\n", .{ package.name, changed });
                 std.process.exit(1);
@@ -290,19 +297,48 @@ fn auditPackage(allocator: std.mem.Allocator, package: PackageManifest) !Counts 
     return total;
 }
 
-fn formatCheckPackage(allocator: std.mem.Allocator, package: PackageManifest) !usize {
+const FormatMode = enum {
+    write,
+    check,
+};
+
+fn formatPackage(allocator: std.mem.Allocator, package: PackageManifest, mode: FormatMode) !usize {
     var changed: usize = 0;
 
     for (packageFormatSources(package)) |path| {
         const source = try std.fs.cwd().readFileAlloc(allocator, path, 16 * 1024 * 1024);
         defer allocator.free(source);
 
-        if (try formatCheckSource(allocator, source)) {
-            changed += 1;
-            std.debug.print("zpp-package: would change {s}\n", .{path});
+        const formatted = try zpp_fmt.formatSource(allocator, source);
+        defer allocator.free(formatted);
+
+        if (std.mem.eql(u8, source, formatted)) continue;
+
+        changed += 1;
+        switch (mode) {
+            .check => {
+                std.debug.print("zpp-package: would change {s}\n", .{path});
+            },
+            .write => {
+                try std.fs.cwd().writeFile(.{
+                    .sub_path = path,
+                    .data = formatted,
+                });
+                std.debug.print("zpp-package: formatted {s}\n", .{path});
+            },
         }
     }
 
+    return changed;
+}
+
+fn formatPackageSourcesForTest(allocator: std.mem.Allocator, sources: []const []const u8) !usize {
+    var changed: usize = 0;
+    for (sources) |source| {
+        if (try formatCheckSource(allocator, source)) {
+            changed += 1;
+        }
+    }
     return changed;
 }
 
@@ -597,6 +633,14 @@ test "package format sources default to package sources" {
 test "format check source reports formatter drift" {
     try std.testing.expect(!try formatCheckSource(std.testing.allocator, "trait Writer {\n}\n"));
     try std.testing.expect(try formatCheckSource(std.testing.allocator, "trait Writer {  \n}\n"));
+}
+
+test "package format source counting follows formatter drift" {
+    const sources = [_][]const u8{
+        "trait Writer {\n}\n",
+        "trait Writer {  \n}\n",
+    };
+    try std.testing.expectEqual(@as(usize, 1), try formatPackageSourcesForTest(std.testing.allocator, &sources));
 }
 
 test "compatible manifest helper catches missing line" {
