@@ -5,7 +5,7 @@ const zpp_doc = @import("zpp_doc.zig");
 const zpp_fmt = @import("zpp_fmt.zig");
 
 const usage =
-    \\usage: zpp-package <package.json> (--audit | --fmt | --fmt-check | --api [-o output.jsonl] | --doc [-o output.md] | --doc-check [baseline.md] | --api-check [baseline.jsonl] | --api-check-compatible [baseline.jsonl]) [--deny-warnings]
+    \\usage: zpp-package <package.json> (--audit | --fmt | --fmt-check | --refresh | --api [-o output.jsonl] | --doc [-o output.md] | --doc-check [baseline.md] | --api-check [baseline.jsonl] | --api-check-compatible [baseline.jsonl]) [--deny-warnings]
     \\
     \\Package manifest format:
     \\{
@@ -35,6 +35,7 @@ const Command = enum {
     audit,
     fmt,
     fmt_check,
+    refresh,
     api,
     doc,
     doc_check,
@@ -93,6 +94,8 @@ pub fn main() !void {
             try setCommand(&command, .fmt);
         } else if (std.mem.eql(u8, arg, "--fmt-check")) {
             try setCommand(&command, .fmt_check);
+        } else if (std.mem.eql(u8, arg, "--refresh")) {
+            try setCommand(&command, .refresh);
         } else if (std.mem.eql(u8, arg, "--api")) {
             try setCommand(&command, .api);
         } else if (std.mem.eql(u8, arg, "--doc")) {
@@ -162,6 +165,15 @@ pub fn main() !void {
                 std.debug.print("zpp-package fmt-check {s}: {d} file(s) would change\n", .{ package.name, changed });
                 std.process.exit(1);
             }
+        },
+        .refresh => {
+            const result = try refreshPackage(allocator, package);
+            std.debug.print("zpp-package refresh {s}: {d} file(s) formatted, api={s}, docs={s}\n", .{
+                package.name,
+                result.formatted,
+                enabledLabel(result.wrote_api),
+                enabledLabel(result.wrote_docs),
+            });
         },
         .api => {
             const manifest = try generatePackageApi(allocator, package);
@@ -301,6 +313,44 @@ const FormatMode = enum {
     write,
     check,
 };
+
+const RefreshResult = struct {
+    formatted: usize,
+    wrote_api: bool,
+    wrote_docs: bool,
+};
+
+fn refreshPackage(allocator: std.mem.Allocator, package: PackageManifest) !RefreshResult {
+    return .{
+        .formatted = try formatPackage(allocator, package, .write),
+        .wrote_api = try writeConfiguredPackageApi(allocator, package),
+        .wrote_docs = try writeConfiguredPackageDocs(allocator, package),
+    };
+}
+
+fn writeConfiguredPackageApi(allocator: std.mem.Allocator, package: PackageManifest) !bool {
+    const path = resolveOutputPath(null, package.api_output) orelse return false;
+    const manifest = try generatePackageApi(allocator, package);
+    defer allocator.free(manifest);
+
+    try std.fs.cwd().writeFile(.{ .sub_path = path, .data = manifest });
+    std.debug.print("zpp-package: wrote API manifest {s}\n", .{path});
+    return true;
+}
+
+fn writeConfiguredPackageDocs(allocator: std.mem.Allocator, package: PackageManifest) !bool {
+    const path = resolveOutputPath(null, package.docs_output) orelse return false;
+    const markdown = try generatePackageDocs(allocator, package);
+    defer allocator.free(markdown);
+
+    try std.fs.cwd().writeFile(.{ .sub_path = path, .data = markdown });
+    std.debug.print("zpp-package: wrote docs {s}\n", .{path});
+    return true;
+}
+
+fn enabledLabel(enabled: bool) []const u8 {
+    return if (enabled) "yes" else "no";
+}
 
 fn formatPackage(allocator: std.mem.Allocator, package: PackageManifest, mode: FormatMode) !usize {
     var changed: usize = 0;
@@ -633,6 +683,11 @@ test "package format sources default to package sources" {
 test "format check source reports formatter drift" {
     try std.testing.expect(!try formatCheckSource(std.testing.allocator, "trait Writer {\n}\n"));
     try std.testing.expect(try formatCheckSource(std.testing.allocator, "trait Writer {  \n}\n"));
+}
+
+test "enabled label is stable for command summaries" {
+    try std.testing.expectEqualStrings("yes", enabledLabel(true));
+    try std.testing.expectEqualStrings("no", enabledLabel(false));
 }
 
 test "package format source counting follows formatter drift" {

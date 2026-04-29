@@ -111,6 +111,7 @@ Use the package manifest:
 zig build package-zpp -- zpp-package.json --audit
 zig build package-zpp -- zpp-package.json --fmt
 zig build package-zpp -- zpp-package.json --fmt-check
+zig build package-zpp -- zpp-package.json --refresh
 zig build package-zpp -- zpp-package.json --api
 zig build package-zpp -- zpp-package.json --doc
 zig build package-zpp -- zpp-package.json --doc-check

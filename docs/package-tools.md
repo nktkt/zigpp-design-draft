@@ -14,8 +14,8 @@ The prototype has three related tools:
 - `zpp-api`: generates and checks JSON Lines API manifests for one or more
   `.zpp` source files
 - `zpp-package`: reads a package manifest and runs audit, docs, API generation,
-  formatting, format checks, docs drift checks, or API compatibility checks
-  across the package source lists
+  formatting, refreshes, format checks, docs drift checks, or API compatibility
+  checks across the package source lists
 
 Use `zpp-package` for repository CI. Use `zpp-doc` and `zpp-api` directly when
 iterating on one file or debugging manifest output.
@@ -97,6 +97,16 @@ Require all package format sources to match `zpp-fmt` output:
 ```sh
 zig build package-zpp -- zpp-package.json --fmt-check
 ```
+
+Refresh all generated package artifacts:
+
+```sh
+zig build package-zpp -- zpp-package.json --refresh
+```
+
+`--refresh` runs package formatting first, then rewrites the configured
+`api_output` and `docs_output` files when those manifest fields are present.
+It is the contributor shortcut for preparing generated diffs before running CI.
 
 Require generated package docs to match the manifest's `docs_output`:
 
@@ -224,11 +234,11 @@ zig build ci
 This policy keeps six surfaces under review:
 
 - unit and behavior tests
-- `.zpp` source formatting
+- manifest-driven `.zpp` source formatting
 - `.zpp` lowering fixtures
 - generated Zig compile checks
-- package diagnostics, API baseline drift, and docs baseline drift
-- manifest-driven `.zpp` source formatting
+- package diagnostics
+- API baseline drift and docs baseline drift
 
 The `ci` build step expands to `zig build test`, formatter checks, package
 audit, package API baseline checks, and package docs baseline checks. `zig build
@@ -238,8 +248,7 @@ When changing public examples or API extraction, regenerate the checked-in
 package outputs and commit them with the source change:
 
 ```sh
-zig build package-zpp -- zpp-package.json --api
-zig build package-zpp -- zpp-package.json --doc
+zig build package-zpp -- zpp-package.json --refresh
 ```
 
 ## Current Limits

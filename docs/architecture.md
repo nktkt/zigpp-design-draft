@@ -135,6 +135,7 @@ zig build doc-zpp -- examples/hello_trait.zpp
 zig build package-zpp -- zpp-package.json --audit
 zig build package-zpp -- zpp-package.json --fmt
 zig build package-zpp -- zpp-package.json --fmt-check
+zig build package-zpp -- zpp-package.json --refresh
 ```
 
 `zig build test` runs:
@@ -175,8 +176,7 @@ The repository checks in generated package artifacts:
 They are generated through:
 
 ```sh
-zig build package-zpp -- zpp-package.json --api
-zig build package-zpp -- zpp-package.json --doc
+zig build package-zpp -- zpp-package.json --refresh
 ```
 
 CI checks the API baseline with:
