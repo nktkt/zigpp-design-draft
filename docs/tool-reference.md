@@ -161,7 +161,8 @@ zig build package-zpp -- zpp-package.json --api-check-compatible
 Failure policy:
 
 - choose exactly one package command
-- validation fails on missing source files or duplicate source entries
+- validation fails on empty source lists, missing source files, duplicate source
+  entries, or non-`.zpp` source paths
 - audit errors fail
 - audit warnings fail only with `--deny-warnings` or `-Werror`
 - `--fmt` writes formatted output for changed `format_sources`

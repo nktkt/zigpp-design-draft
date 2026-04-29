@@ -74,8 +74,9 @@ Validate manifest source paths:
 zig build package-zpp -- zpp-package.json --validate
 ```
 
-Validation checks that entries in `sources` and explicit `format_sources` exist
-and are not duplicated within their own list.
+Validation checks that `sources` is not empty and that entries in `sources` and
+explicit `format_sources` exist, use the `.zpp` extension, and are not
+duplicated within their own list.
 
 Audit all package sources:
 

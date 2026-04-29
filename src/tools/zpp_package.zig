@@ -378,25 +378,37 @@ fn packageCheckFails(result: PackageCheckResult, deny_warnings: bool) bool {
 }
 
 const ValidationResult = struct {
+    empty_lists: usize = 0,
     missing_paths: usize = 0,
     duplicate_entries: usize = 0,
+    invalid_extensions: usize = 0,
 
     fn errors(self: ValidationResult) usize {
-        return self.missing_paths + self.duplicate_entries;
+        return self.empty_lists + self.missing_paths + self.duplicate_entries + self.invalid_extensions;
     }
 };
 
 fn validatePackage(package: PackageManifest) ValidationResult {
     var result = ValidationResult{};
-    validatePathList("sources", package.sources, &result);
+    validateRequiredPathList("sources", package.sources, ".zpp", &result);
     if (package.format_sources.len != 0) {
-        validatePathList("format_sources", package.format_sources, &result);
+        validateRequiredPathList("format_sources", package.format_sources, ".zpp", &result);
     }
     return result;
 }
 
-fn validatePathList(label: []const u8, paths: []const []const u8, result: *ValidationResult) void {
+fn validateRequiredPathList(label: []const u8, paths: []const []const u8, expected_ext: []const u8, result: *ValidationResult) void {
+    if (paths.len == 0) {
+        result.empty_lists += 1;
+        std.debug.print("zpp-package: {s} must not be empty\n", .{label});
+        return;
+    }
+
     for (paths) |path| {
+        if (!pathHasExtension(path, expected_ext)) {
+            result.invalid_extensions += 1;
+            std.debug.print("zpp-package: {s} invalid extension: {s} (expected {s})\n", .{ label, path, expected_ext });
+        }
         if (!pathExists(path)) {
             result.missing_paths += 1;
             std.debug.print("zpp-package: {s} missing file: {s}\n", .{ label, path });
@@ -424,6 +436,18 @@ fn firstIndexOfPath(paths: []const []const u8, needle: []const u8) ?usize {
     return null;
 }
 
+fn pathHasExtension(path: []const u8, expected_ext: []const u8) bool {
+    return std.mem.endsWith(u8, path, expected_ext);
+}
+
+fn countInvalidExtensions(paths: []const []const u8, expected_ext: []const u8) usize {
+    var invalid: usize = 0;
+    for (paths) |path| {
+        if (!pathHasExtension(path, expected_ext)) invalid += 1;
+    }
+    return invalid;
+}
+
 fn countDuplicateEntries(paths: []const []const u8) usize {
     var duplicates: usize = 0;
     var i: usize = 0;
@@ -438,10 +462,12 @@ fn validationFails(result: ValidationResult) bool {
 }
 
 fn printValidationSummary(package_name: []const u8, result: ValidationResult) void {
-    std.debug.print("zpp-package validate {s}: {d} missing path(s), {d} duplicate entry(s)\n", .{
+    std.debug.print("zpp-package validate {s}: {d} empty list(s), {d} missing path(s), {d} duplicate entry(s), {d} invalid extension(s)\n", .{
         package_name,
+        result.empty_lists,
         result.missing_paths,
         result.duplicate_entries,
+        result.invalid_extensions,
     });
 }
 
@@ -854,10 +880,19 @@ test "manifest duplicate helper counts repeated entries" {
     try std.testing.expectEqual(@as(?usize, null), firstIndexOfPath(paths[0..2], "missing.zpp"));
 }
 
+test "manifest extension helper catches non-zpp paths" {
+    const paths = [_][]const u8{ "one.zpp", "two.zig", "three.zpp.md" };
+    try std.testing.expect(pathHasExtension("one.zpp", ".zpp"));
+    try std.testing.expect(!pathHasExtension("one.zig", ".zpp"));
+    try std.testing.expectEqual(@as(usize, 2), countInvalidExtensions(&paths, ".zpp"));
+}
+
 test "validation failure policy follows validation errors" {
     try std.testing.expect(!validationFails(.{}));
+    try std.testing.expect(validationFails(.{ .empty_lists = 1 }));
     try std.testing.expect(validationFails(.{ .missing_paths = 1 }));
     try std.testing.expect(validationFails(.{ .duplicate_entries = 1 }));
+    try std.testing.expect(validationFails(.{ .invalid_extensions = 1 }));
 }
 
 test "package defaults resolve output and baseline paths" {
