@@ -379,13 +379,14 @@ fn packageCheckFails(result: PackageCheckResult, deny_warnings: bool) bool {
 
 const ValidationResult = struct {
     empty_lists: usize = 0,
+    absolute_paths: usize = 0,
     missing_paths: usize = 0,
     duplicate_entries: usize = 0,
     invalid_extensions: usize = 0,
     invalid_outputs: usize = 0,
 
     fn errors(self: ValidationResult) usize {
-        return self.empty_lists + self.missing_paths + self.duplicate_entries + self.invalid_extensions + self.invalid_outputs;
+        return self.empty_lists + self.absolute_paths + self.missing_paths + self.duplicate_entries + self.invalid_extensions + self.invalid_outputs;
     }
 };
 
@@ -409,6 +410,10 @@ fn validateRequiredPathList(label: []const u8, paths: []const []const u8, expect
     }
 
     for (paths) |path| {
+        if (pathIsAbsolute(path)) {
+            result.absolute_paths += 1;
+            std.debug.print("zpp-package: {s} must be repo-relative: {s}\n", .{ label, path });
+        }
         if (!pathHasExtension(path, expected_ext)) {
             result.invalid_extensions += 1;
             std.debug.print("zpp-package: {s} invalid extension: {s} (expected {s})\n", .{ label, path, expected_ext });
@@ -430,10 +435,18 @@ fn validateRequiredPathList(label: []const u8, paths: []const []const u8, expect
 
 fn validateOutputPath(label: []const u8, path: []const u8, expected_ext: []const u8, result: *ValidationResult) void {
     if (path.len == 0) return;
+    if (pathIsAbsolute(path)) {
+        result.absolute_paths += 1;
+        std.debug.print("zpp-package: {s} must be repo-relative: {s}\n", .{ label, path });
+    }
     if (pathHasExtension(path, expected_ext)) return;
 
     result.invalid_outputs += 1;
     std.debug.print("zpp-package: {s} invalid output path: {s} (expected {s})\n", .{ label, path, expected_ext });
+}
+
+fn pathIsAbsolute(path: []const u8) bool {
+    return std.fs.path.isAbsolutePosix(path) or std.fs.path.isAbsoluteWindows(path);
 }
 
 fn pathExists(path: []const u8) bool {
@@ -468,6 +481,14 @@ fn countInvalidOutputExtensions(paths: []const []const u8, expected_ext: []const
     return invalid;
 }
 
+fn countAbsolutePaths(paths: []const []const u8) usize {
+    var absolute: usize = 0;
+    for (paths) |path| {
+        if (pathIsAbsolute(path)) absolute += 1;
+    }
+    return absolute;
+}
+
 fn countDuplicateEntries(paths: []const []const u8) usize {
     var duplicates: usize = 0;
     var i: usize = 0;
@@ -482,9 +503,10 @@ fn validationFails(result: ValidationResult) bool {
 }
 
 fn printValidationSummary(package_name: []const u8, result: ValidationResult) void {
-    std.debug.print("zpp-package validate {s}: {d} empty list(s), {d} missing path(s), {d} duplicate entry(s), {d} invalid extension(s), {d} invalid output(s)\n", .{
+    std.debug.print("zpp-package validate {s}: {d} empty list(s), {d} absolute path(s), {d} missing path(s), {d} duplicate entry(s), {d} invalid extension(s), {d} invalid output(s)\n", .{
         package_name,
         result.empty_lists,
+        result.absolute_paths,
         result.missing_paths,
         result.duplicate_entries,
         result.invalid_extensions,
@@ -913,9 +935,18 @@ test "manifest output extension helper ignores unset outputs" {
     try std.testing.expectEqual(@as(usize, 1), countInvalidOutputExtensions(&paths, ".jsonl"));
 }
 
+test "manifest path helper catches posix and windows absolute paths" {
+    const paths = [_][]const u8{ "examples/one.zpp", "/tmp/one.zpp", "C:\\tmp\\one.zpp" };
+    try std.testing.expect(!pathIsAbsolute("examples/one.zpp"));
+    try std.testing.expect(pathIsAbsolute("/tmp/one.zpp"));
+    try std.testing.expect(pathIsAbsolute("C:\\tmp\\one.zpp"));
+    try std.testing.expectEqual(@as(usize, 2), countAbsolutePaths(&paths));
+}
+
 test "validation failure policy follows validation errors" {
     try std.testing.expect(!validationFails(.{}));
     try std.testing.expect(validationFails(.{ .empty_lists = 1 }));
+    try std.testing.expect(validationFails(.{ .absolute_paths = 1 }));
     try std.testing.expect(validationFails(.{ .missing_paths = 1 }));
     try std.testing.expect(validationFails(.{ .duplicate_entries = 1 }));
     try std.testing.expect(validationFails(.{ .invalid_extensions = 1 }));
