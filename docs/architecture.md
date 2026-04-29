@@ -132,6 +132,7 @@ Tool-specific steps:
 zig build audit-zpp -- examples/hello_trait.zpp
 zig build api-zpp -- examples/hello_trait.zpp
 zig build doc-zpp -- examples/hello_trait.zpp
+zig build package-zpp -- zpp-package.json --validate
 zig build package-zpp -- zpp-package.json --audit
 zig build package-zpp -- zpp-package.json --fmt
 zig build package-zpp -- zpp-package.json --fmt-check
@@ -185,8 +186,8 @@ CI checks the API baseline with:
 zig build package-zpp -- zpp-package.json --check
 ```
 
-This makes formatter drift, diagnostics, public API extraction drift, and docs
-drift visible in pull requests.
+This makes manifest mistakes, formatter drift, diagnostics, public API
+extraction drift, and docs drift visible in pull requests.
 
 ## Design Boundaries
 

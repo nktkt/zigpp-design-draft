@@ -5,7 +5,7 @@ const zpp_doc = @import("zpp_doc.zig");
 const zpp_fmt = @import("zpp_fmt.zig");
 
 const usage =
-    \\usage: zpp-package <package.json> (--audit | --fmt | --fmt-check | --refresh | --check | --api [-o output.jsonl] | --doc [-o output.md] | --doc-check [baseline.md] | --api-check [baseline.jsonl] | --api-check-compatible [baseline.jsonl]) [--deny-warnings]
+    \\usage: zpp-package <package.json> (--validate | --audit | --fmt | --fmt-check | --refresh | --check | --api [-o output.jsonl] | --doc [-o output.md] | --doc-check [baseline.md] | --api-check [baseline.jsonl] | --api-check-compatible [baseline.jsonl]) [--deny-warnings]
     \\
     \\Package manifest format:
     \\{
@@ -32,6 +32,7 @@ const PackageManifest = struct {
 
 const Command = enum {
     none,
+    validate,
     audit,
     fmt,
     fmt_check,
@@ -89,6 +90,8 @@ pub fn main() !void {
         if (std.mem.eql(u8, arg, "--help") or std.mem.eql(u8, arg, "-h")) {
             try std.fs.File.stdout().writeAll(usage);
             return;
+        } else if (std.mem.eql(u8, arg, "--validate")) {
+            try setCommand(&command, .validate);
         } else if (std.mem.eql(u8, arg, "--audit")) {
             try setCommand(&command, .audit);
         } else if (std.mem.eql(u8, arg, "--fmt")) {
@@ -146,6 +149,13 @@ pub fn main() !void {
     const package = parsed.value;
 
     switch (command) {
+        .validate => {
+            const result = validatePackage(package);
+            printValidationSummary(package.name, result);
+            if (validationFails(result)) {
+                std.process.exit(1);
+            }
+        },
         .audit => {
             const counts = try auditPackage(allocator, package);
             std.debug.print("zpp-package audit {s}: {d} error(s), {d} warning(s), {d} note(s)\n", .{
@@ -170,6 +180,11 @@ pub fn main() !void {
             }
         },
         .refresh => {
+            const validation = validatePackage(package);
+            if (validationFails(validation)) {
+                printValidationSummary(package.name, validation);
+                std.process.exit(1);
+            }
             const result = try refreshPackage(allocator, package);
             std.debug.print("zpp-package refresh {s}: {d} file(s) formatted, api={s}, docs={s}\n", .{
                 package.name,
@@ -180,8 +195,9 @@ pub fn main() !void {
         },
         .check => {
             const result = try checkPackage(allocator, package);
-            std.debug.print("zpp-package check {s}: fmt={d}, {d} error(s), {d} warning(s), {d} note(s), api={s}, docs={s}\n", .{
+            std.debug.print("zpp-package check {s}: manifest={s}, fmt={d}, {d} error(s), {d} warning(s), {d} note(s), api={s}, docs={s}\n", .{
                 package.name,
+                passLabel(!validationFails(result.validation)),
                 result.format_changes,
                 result.diagnostics.errors,
                 result.diagnostics.warnings,
@@ -325,6 +341,7 @@ const RefreshResult = struct {
 };
 
 const PackageCheckResult = struct {
+    validation: ValidationResult,
     format_changes: usize,
     diagnostics: Counts,
     api_ok: bool,
@@ -332,7 +349,19 @@ const PackageCheckResult = struct {
 };
 
 fn checkPackage(allocator: std.mem.Allocator, package: PackageManifest) !PackageCheckResult {
+    const validation = validatePackage(package);
+    if (validationFails(validation)) {
+        return .{
+            .validation = validation,
+            .format_changes = 0,
+            .diagnostics = .{},
+            .api_ok = false,
+            .docs_ok = false,
+        };
+    }
+
     return .{
+        .validation = validation,
         .format_changes = try formatPackage(allocator, package, .check),
         .diagnostics = try auditPackage(allocator, package),
         .api_ok = try checkPackageApi(allocator, null, package),
@@ -341,10 +370,79 @@ fn checkPackage(allocator: std.mem.Allocator, package: PackageManifest) !Package
 }
 
 fn packageCheckFails(result: PackageCheckResult, deny_warnings: bool) bool {
-    return result.format_changes != 0 or
+    return validationFails(result.validation) or
+        result.format_changes != 0 or
         auditFails(result.diagnostics, deny_warnings) or
         !result.api_ok or
         !result.docs_ok;
+}
+
+const ValidationResult = struct {
+    missing_paths: usize = 0,
+    duplicate_entries: usize = 0,
+
+    fn errors(self: ValidationResult) usize {
+        return self.missing_paths + self.duplicate_entries;
+    }
+};
+
+fn validatePackage(package: PackageManifest) ValidationResult {
+    var result = ValidationResult{};
+    validatePathList("sources", package.sources, &result);
+    if (package.format_sources.len != 0) {
+        validatePathList("format_sources", package.format_sources, &result);
+    }
+    return result;
+}
+
+fn validatePathList(label: []const u8, paths: []const []const u8, result: *ValidationResult) void {
+    for (paths) |path| {
+        if (!pathExists(path)) {
+            result.missing_paths += 1;
+            std.debug.print("zpp-package: {s} missing file: {s}\n", .{ label, path });
+        }
+    }
+
+    var i: usize = 0;
+    while (i < paths.len) : (i += 1) {
+        if (firstIndexOfPath(paths[0..i], paths[i]) != null) {
+            result.duplicate_entries += 1;
+            std.debug.print("zpp-package: {s} duplicate entry: {s}\n", .{ label, paths[i] });
+        }
+    }
+}
+
+fn pathExists(path: []const u8) bool {
+    std.fs.cwd().access(path, .{}) catch return false;
+    return true;
+}
+
+fn firstIndexOfPath(paths: []const []const u8, needle: []const u8) ?usize {
+    for (paths, 0..) |path, index| {
+        if (std.mem.eql(u8, path, needle)) return index;
+    }
+    return null;
+}
+
+fn countDuplicateEntries(paths: []const []const u8) usize {
+    var duplicates: usize = 0;
+    var i: usize = 0;
+    while (i < paths.len) : (i += 1) {
+        if (firstIndexOfPath(paths[0..i], paths[i]) != null) duplicates += 1;
+    }
+    return duplicates;
+}
+
+fn validationFails(result: ValidationResult) bool {
+    return result.errors() != 0;
+}
+
+fn printValidationSummary(package_name: []const u8, result: ValidationResult) void {
+    std.debug.print("zpp-package validate {s}: {d} missing path(s), {d} duplicate entry(s)\n", .{
+        package_name,
+        result.missing_paths,
+        result.duplicate_entries,
+    });
 }
 
 fn refreshPackage(allocator: std.mem.Allocator, package: PackageManifest) !RefreshResult {
@@ -706,35 +804,60 @@ test "audit failure policy matches package command" {
 
 test "package check failure policy combines all package checks" {
     try std.testing.expect(!packageCheckFails(.{
+        .validation = .{},
         .format_changes = 0,
         .diagnostics = .{},
         .api_ok = true,
         .docs_ok = true,
     }, false));
     try std.testing.expect(packageCheckFails(.{
+        .validation = .{ .missing_paths = 1 },
+        .format_changes = 0,
+        .diagnostics = .{},
+        .api_ok = true,
+        .docs_ok = true,
+    }, false));
+    try std.testing.expect(packageCheckFails(.{
+        .validation = .{},
         .format_changes = 1,
         .diagnostics = .{},
         .api_ok = true,
         .docs_ok = true,
     }, false));
     try std.testing.expect(packageCheckFails(.{
+        .validation = .{},
         .format_changes = 0,
         .diagnostics = .{ .warnings = 1 },
         .api_ok = true,
         .docs_ok = true,
     }, true));
     try std.testing.expect(packageCheckFails(.{
+        .validation = .{},
         .format_changes = 0,
         .diagnostics = .{},
         .api_ok = false,
         .docs_ok = true,
     }, false));
     try std.testing.expect(packageCheckFails(.{
+        .validation = .{},
         .format_changes = 0,
         .diagnostics = .{},
         .api_ok = true,
         .docs_ok = false,
     }, false));
+}
+
+test "manifest duplicate helper counts repeated entries" {
+    const paths = [_][]const u8{ "one.zpp", "two.zpp", "one.zpp", "one.zpp" };
+    try std.testing.expectEqual(@as(usize, 2), countDuplicateEntries(&paths));
+    try std.testing.expectEqual(@as(?usize, 0), firstIndexOfPath(paths[0..2], "one.zpp"));
+    try std.testing.expectEqual(@as(?usize, null), firstIndexOfPath(paths[0..2], "missing.zpp"));
+}
+
+test "validation failure policy follows validation errors" {
+    try std.testing.expect(!validationFails(.{}));
+    try std.testing.expect(validationFails(.{ .missing_paths = 1 }));
+    try std.testing.expect(validationFails(.{ .duplicate_entries = 1 }));
 }
 
 test "package defaults resolve output and baseline paths" {

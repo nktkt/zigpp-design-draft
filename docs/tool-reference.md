@@ -126,12 +126,13 @@ Failure policy:
 Usage:
 
 ```text
-zpp-package <package.json> (--audit | --fmt | --fmt-check | --refresh | --check | --api [-o output.jsonl] | --doc [-o output.md] | --doc-check [baseline.md] | --api-check [baseline.jsonl] | --api-check-compatible [baseline.jsonl]) [--deny-warnings]
+zpp-package <package.json> (--validate | --audit | --fmt | --fmt-check | --refresh | --check | --api [-o output.jsonl] | --doc [-o output.md] | --doc-check [baseline.md] | --api-check [baseline.jsonl] | --api-check-compatible [baseline.jsonl]) [--deny-warnings]
 ```
 
 Purpose:
 
 - reads a package manifest
+- validates manifest source paths
 - audits all package sources
 - formats package format sources
 - checks package format sources
@@ -144,6 +145,7 @@ Purpose:
 Examples:
 
 ```sh
+zig build package-zpp -- zpp-package.json --validate
 zig build package-zpp -- zpp-package.json --audit
 zig build package-zpp -- zpp-package.json --fmt
 zig build package-zpp -- zpp-package.json --fmt-check
@@ -159,12 +161,14 @@ zig build package-zpp -- zpp-package.json --api-check-compatible
 Failure policy:
 
 - choose exactly one package command
+- validation fails on missing source files or duplicate source entries
 - audit errors fail
 - audit warnings fail only with `--deny-warnings` or `-Werror`
 - `--fmt` writes formatted output for changed `format_sources`
 - format checks fail when any `format_sources` entry would change
 - `--refresh` writes formatted sources plus configured API and docs outputs
-- `--check` fails on formatter drift, audit failures, API drift, or docs drift
+- `--check` fails on manifest validation, formatter drift, audit failures, API
+  drift, or docs drift
 - API checks fail when their manifest policy is violated
 - `--doc-check` fails when generated Markdown differs from the baseline
 - exact API and docs drift failures print the first differing line as

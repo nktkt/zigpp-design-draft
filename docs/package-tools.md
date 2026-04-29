@@ -13,9 +13,9 @@ The prototype has three related tools:
 - `zpp-doc`: generates Markdown API notes for one `.zpp` source file
 - `zpp-api`: generates and checks JSON Lines API manifests for one or more
   `.zpp` source files
-- `zpp-package`: reads a package manifest and runs audit, docs, API generation,
-  formatting, refreshes, package CI checks, format checks, docs drift checks,
-  or API compatibility checks across the package source lists
+- `zpp-package`: reads a package manifest and runs validation, audit, docs, API
+  generation, formatting, refreshes, package CI checks, format checks, docs
+  drift checks, or API compatibility checks across the package source lists
 
 Use `zpp-package` for repository CI. Use `zpp-doc` and `zpp-api` directly when
 iterating on one file or debugging manifest output.
@@ -68,6 +68,15 @@ metadata without breaking the prototype tools.
 
 ## Package Commands
 
+Validate manifest source paths:
+
+```sh
+zig build package-zpp -- zpp-package.json --validate
+```
+
+Validation checks that entries in `sources` and explicit `format_sources` exist
+and are not duplicated within their own list.
+
 Audit all package sources:
 
 ```sh
@@ -114,9 +123,9 @@ Run all package-level CI checks:
 zig build package-zpp -- zpp-package.json --check
 ```
 
-`--check` combines `--fmt-check`, `--audit`, `--api-check`, and `--doc-check`
-for the manifest defaults. `--deny-warnings` makes audit warnings fail inside
-this combined check.
+`--check` combines `--validate`, `--fmt-check`, `--audit`, `--api-check`, and
+`--doc-check` for the manifest defaults. `--deny-warnings` makes audit warnings
+fail inside this combined check.
 
 Require generated package docs to match the manifest's `docs_output`:
 
@@ -241,9 +250,10 @@ The current GitHub Actions workflow runs:
 zig build ci
 ```
 
-This policy keeps six surfaces under review:
+This policy keeps these surfaces under review:
 
 - unit and behavior tests
+- package manifest validation
 - manifest-driven `.zpp` source formatting
 - `.zpp` lowering fixtures
 - generated Zig compile checks

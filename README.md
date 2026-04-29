@@ -109,6 +109,7 @@ Use the package manifest:
 
 ```sh
 zig build package-zpp -- zpp-package.json --audit
+zig build package-zpp -- zpp-package.json --validate
 zig build package-zpp -- zpp-package.json --fmt
 zig build package-zpp -- zpp-package.json --fmt-check
 zig build package-zpp -- zpp-package.json --refresh
